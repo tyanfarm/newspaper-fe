@@ -1,0 +1,34 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    @apply bg-neutral-950 text-neutral-100 antialiased;
+  }
+}
+
+/*
+ * Swiper's CSS is unlayered and loads after this file, so it beats Tailwind
+ * utilities and redefines its variables on :root. Overrides for Swiper-owned
+ * elements go here, scoped under .slides-viewer to win on specificity.
+ */
+.slides-viewer {
+  --swiper-theme-color: #fafafa;
+  --swiper-navigation-size: 28px;
+  --swiper-navigation-sides-offset: 16px;
+}
+
+.slides-viewer .swiper-button-prev,
+.slides-viewer .swiper-button-next {
+  display: none;
+}
+
+@media (min-width: 48rem) {
+  .slides-viewer .swiper-button-prev,
+  .slides-viewer .swiper-button-next {
+    display: flex;
+  }
+}
