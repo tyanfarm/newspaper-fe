@@ -1,6 +1,14 @@
 import Home from './Home'
+import SectionDialog from './SectionDialog'
+import { useSectionRoute } from './useSectionRoute'
 
-// Temporary: popup wiring arrives in Task 4.
 export default function App() {
-  return <Home onOpen={() => {}} />
+  const route = useSectionRoute()
+
+  return (
+    <>
+      <Home onOpen={route.open} />
+      <SectionDialog index={route.openIndex} onClose={route.close} onChange={route.change} />
+    </>
+  )
 }
