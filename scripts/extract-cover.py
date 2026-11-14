@@ -6,6 +6,10 @@ Usage:
 Needs Pillow, numpy and rembg (see scripts/README.md). Every output has a fixed
 file name, so any of them can later be replaced by a clean Canva export of the
 same element without touching the code.
+
+Only the parts with no original export are cut here: the title, the four cards
+and the paper texture. The lighthouse, beam, waves, ship, logos and birds come
+from the original Canva elements via scripts/build-cover-scene.py.
 """
 
 import argparse
@@ -20,11 +24,6 @@ from rembg import new_session, remove
 PREVIEW_WIDTH = 795
 BOXES = {
     "title": (15, 32, 770, 205),
-    "lighthouse": (0, 600, 200, 1040),
-    "ship": (195, 925, 425, 1124),
-    "bird": (0, 255, 110, 320),
-    "logos": (545, 1052, 795, 1124),
-    "sea": (418, 985, 545, 1124),
     "paper": (362, 250, 445, 465),
 }
 CARDS = {
@@ -36,9 +35,6 @@ CARDS = {
 # Long-edge caps in px: ("w" = cap width, "h" = cap height)
 CAPS = {
     "title": ("w", 2400),
-    "lighthouse": ("h", 1600),
-    "ship": ("w", 1200),
-    "bird": ("w", 400),
     "card": ("w", 900),
 }
 
@@ -172,12 +168,8 @@ def main() -> None:
         written.append(path)
 
     emit("title", cap(trim(title_cutout(crop(im, BOXES["title"]), session)), "title"))
-    for name in ("lighthouse", "ship", "bird"):
-        emit(name, cap(trim(remove(crop(im, BOXES[name]), session=session)), name))
     for slug, box in CARDS.items():
         emit(f"card-{slug}", cap(trim(card_cutout(crop(im, box), session)), "card"))
-    emit("logos", crop(im, BOXES["logos"]))
-    emit("sea-tile", mirrored_strip(crop(im, BOXES["sea"])))
     paper = mirrored_strip(crop(im, BOXES["paper"]))
     emit("paper-tile", Image.fromarray(np.vstack([np.asarray(paper), np.asarray(ImageOps.flip(paper))])))
 

@@ -3,7 +3,9 @@
 Báo tường "Thắp sáng – L2T NEWS" trên web — Vite + React + TypeScript + Tailwind + Swiper.
 
 Trang chính là bìa báo trải kín màn hình; bấm một trong 4 thẻ để mở trang đó trong popup
-(nền tối, mờ). Mỗi mục có link riêng: `/#loi-ngo`, `/#vung-ky-uc`, `/#cung-nhau-lon`, `/#loi-tri-an`.
+(nền tối, mờ). Lúc popup mở, một đàn bướm bay ra từ thẻ vừa bấm, rồi các hình trong trang
+lần lượt hiện ra từ trên xuống. Mỗi mục có link riêng: `/#loi-ngo`, `/#vung-ky-uc`,
+`/#cung-nhau-lon`, `/#loi-tri-an`.
 
 ## Chạy local
 
@@ -16,19 +18,19 @@ pnpm dev
 
 | Thư mục | Nội dung |
 |---|---|
-| `src/assets/sections/` | 4 trang mở trong popup: `loi-ngo.webp`, `vung-ky-uc.webp`, `cung-nhau-lon.webp`, `loi-tri-an.webp` |
-| `src/assets/cover/` | Các phần của bìa (tiêu đề, hải đăng, thuyền, 4 thẻ, sóng, nền giấy, logo…) |
-| `design/canva-export/` | File xuất gốc từ Canva (bìa = `1.webp`), không đưa lên web |
+| `design/canva-export/` | File xuất từ Canva, không đưa thẳng lên web: bìa `1.webp`, 4 trang `2.webp`–`5.webp` |
+| `design/canva-export/objects-png/` | Từng hình (PNG nền trong suốt) của mỗi trang, xuất riêng từ Canva; `effects/` là 2 con bướm |
+| `design/canva-export/placements/` | Vị trí của từng hình trên slide, do `scripts/locate-elements.py` dò ra |
+| `src/assets/sections/<mục>/` | Trang trong popup, tách lớp: nền giấy, từng hình, lớp chữ trên cùng |
+| `src/assets/cover/` | Các phần của bìa: hải đăng, vệt sáng, sóng, thuyền, logo, chim (bản gốc Canva); tiêu đề, 4 thẻ, nền giấy (tách tự động) |
 | `src/sections.ts` | Tên + thứ tự 4 mục |
 
-**Sửa một trang:** xuất lại trang đó từ Canva, đổi sang WebP, ghi đè đúng tên file trong `src/assets/sections/`.
-
-**Thay phần trên bìa bằng bản gốc từ Canva** (sạch hơn bản tách tự động): xem
-[scripts/README.md](scripts/README.md) — ghi đè đúng tên file trong `src/assets/cover/`, không cần sửa code.
-Script `scripts/extract-cover.py` tách lại toàn bộ từ `design/canva-export/1.webp` nếu bìa thay đổi.
+**Sửa một trang hoặc đổi hình:** xuất lại slide (WebP) và các hình của nó (PNG) từ Canva vào
+`design/canva-export/`, rồi chạy lại các script — xem [scripts/README.md](scripts/README.md).
 
 Trong popup: vuốt (mobile), phím ← → hoặc nút mũi tên (desktop) để sang mục khác; chạm đúp / pinch để phóng to;
-đóng bằng nút ✕, bấm ra vùng tối, phím Esc hoặc nút Back.
+đóng bằng nút ✕, bấm ra vùng tối, phím Esc hoặc nút Back. Máy bật "giảm chuyển động" thì không có bướm
+và các hình hiện ngay.
 
 ## Deploy (GitHub Actions → Vercel)
 

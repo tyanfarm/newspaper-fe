@@ -5,7 +5,9 @@ import { Swiper, SwiperSlide } from 'swiper/react'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/zoom'
+import ButterflyBurst, { type Burst } from './ButterflyBurst'
 import './section-dialog.css'
+import SectionPage from './SectionPage'
 import { sections } from './sections'
 
 type SectionDialogProps = {
@@ -13,12 +15,14 @@ type SectionDialogProps = {
   index: number | null
   onClose: () => void
   onChange: (index: number) => void
+  /** Butterflies to release as the popup opens. */
+  burst: Burst | null
 }
 
 // Clicks on these keep the popup open; anywhere else (the dark area) closes it.
-const KEEP_OPEN = 'img, button, .section-dialog__label, .swiper-button-prev, .swiper-button-next'
+const KEEP_OPEN = '.section-page, button, .section-dialog__label, .swiper-button-prev, .swiper-button-next'
 
-export default function SectionDialog({ index, onClose, onChange }: SectionDialogProps) {
+export default function SectionDialog({ index, onClose, onChange, burst }: SectionDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const swiperRef = useRef<SwiperInstance | null>(null)
   const shown = index ?? 0
@@ -96,16 +100,18 @@ export default function SectionDialog({ index, onClose, onChange }: SectionDialo
             if (index !== null && swiper.activeIndex !== index) onChange(swiper.activeIndex)
           }}
         >
-          {sections.map((section) => (
+          {sections.map((section, i) => (
             <SwiperSlide key={section.slug}>
               <div className="swiper-zoom-container">
-                <img src={section.page} alt={section.title} loading="lazy" decoding="async" />
+                <SectionPage section={section} active={index === i} />
               </div>
               <div className="swiper-lazy-preloader swiper-lazy-preloader-white" />
             </SwiperSlide>
           ))}
         </Swiper>
       </div>
+
+      <ButterflyBurst burst={burst} />
     </dialog>
   )
 }

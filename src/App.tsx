@@ -1,14 +1,29 @@
+import { useState } from 'react'
+import type { Burst } from './ButterflyBurst'
+import type { Point } from './butterflies'
 import Home from './Home'
 import SectionDialog from './SectionDialog'
 import { useSectionRoute } from './useSectionRoute'
 
+const screenCentre = (): Point => ({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+
 export default function App() {
   const route = useSectionRoute()
+  // Butterflies fly out whenever a section opens: from the clicked card, or
+  // from the middle of the screen when the page loads straight onto a section.
+  const [burst, setBurst] = useState<Burst | null>(() =>
+    route.openIndex === null ? null : { id: 0, origin: screenCentre() },
+  )
+
+  const open = (index: number, origin: Point) => {
+    setBurst((prev) => ({ id: (prev?.id ?? 0) + 1, origin }))
+    route.open(index)
+  }
 
   return (
     <>
-      <Home onOpen={route.open} />
-      <SectionDialog index={route.openIndex} onClose={route.close} onChange={route.change} />
+      <Home onOpen={open} />
+      <SectionDialog index={route.openIndex} onClose={route.close} onChange={route.change} burst={burst} />
     </>
   )
 }

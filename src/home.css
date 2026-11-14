@@ -8,7 +8,10 @@
  */
 .home {
   --u: min(1vw, 1.7778vh);
-  --sea-h: calc(var(--u) * 8.5);
+  /* Sea scene: slide-1 pixels → screen, sized so the lighthouse is 41.6u tall. */
+  --k: calc(var(--u) * 41.6 / 2063);
+  --k-logo: var(--k);
+  --sea-h: calc(var(--k) * 461); /* height of the wave row */
   --navy: #1f3f8f;
   --red: #c0392b;
 
@@ -105,46 +108,28 @@
   user-select: none;
 }
 
-.home__lighthouse {
-  left: 0;
-  bottom: calc(var(--u) * 2);
-  height: calc(var(--u) * 41.6);
-  width: auto;
-  z-index: 0;
-}
-
-.home__sea {
+/* Lighthouse, beam, waves, ship and logos, placed by Home.tsx in slide-1 pixels × --k. */
+.home__scene {
   position: absolute;
-  inset: auto 0 0 0;
-  height: var(--sea-h);
+  inset: 0;
   z-index: 1;
-  background: url('./assets/cover/sea-tile.webp') left bottom / auto 100% repeat-x;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%);
-  mask-image: linear-gradient(to bottom, transparent, #000 40%);
+  pointer-events: none;
+  user-select: none;
 }
-
-.home__ship {
-  left: calc(var(--u) * 15);
-  bottom: calc(var(--u) * 0.3);
-  width: calc(var(--u) * 19);
-  z-index: 1;
-}
-
-.home__logos {
+.home__scene-el {
   position: absolute;
-  right: calc(var(--u) * 1.2);
-  bottom: calc(var(--u) * 1.4);
-  width: calc(var(--u) * 13);
-  z-index: 1;
-  padding: calc(var(--u) * 0.35);
-  border-radius: calc(var(--u) * 0.6);
-  background: rgb(255 255 255 / 0.9);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-}
-.home__logos img {
-  width: 100%;
   height: auto;
-  border-radius: calc(var(--u) * 0.3);
+  max-width: none;
+}
+.home__waves-more {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+}
+.home__waves-more img {
+  flex: none;
+  height: auto;
+  max-width: none;
 }
 
 .home__bird { z-index: 0; }
@@ -157,7 +142,8 @@
 @media (max-aspect-ratio: 1/1) {
   .home {
     --u: min(1vw, 0.4615vh);
-    --sea-h: calc(var(--u) * 19.5);
+    --k: calc(var(--u) * 54 / 2063);
+    --k-logo: calc(var(--k) * 1.6); /* at slide scale they are too small to read on a phone */
     background-size: auto, auto, calc(var(--u) * 60) auto, auto;
   }
 
@@ -175,10 +161,6 @@
     grid-template-columns: repeat(2, calc(var(--u) * 41));
     gap: calc(var(--u) * 4.5) calc(var(--u) * 5);
   }
-
-  .home__lighthouse { bottom: calc(var(--u) * 6.5); height: calc(var(--u) * 54); }
-  .home__ship { left: auto; right: calc(var(--u) * 33); bottom: calc(var(--u) * 1); width: calc(var(--u) * 34); }
-  .home__logos { right: calc(var(--u) * 3); bottom: calc(var(--u) * 4.3); width: calc(var(--u) * 28); }
 
   .home__bird--1 { right: calc(var(--u) * 8); top: auto; bottom: calc(var(--u) * 47); width: calc(var(--u) * 15); }
   .home__bird--2,

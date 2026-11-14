@@ -98,9 +98,75 @@
 .section-dialog .swiper-slide {
   padding: 0 12px 16px;
 }
-.section-dialog .swiper-zoom-container > img {
+.section-dialog .swiper-zoom-container {
+  container-type: size; /* lets the page size itself to fit (cqw/cqh) */
+}
+
+/* ---------- a section page, in layers (SectionPage.tsx) ---------- */
+
+.section-page {
+  position: relative;
+  flex: none;
+  width: min(100cqw, 100cqh * var(--ratio));
+  aspect-ratio: var(--ratio);
   border-radius: 4px;
+  overflow: hidden;
   box-shadow: 0 10px 40px rgb(0 0 0 / 0.45);
+}
+.section-page img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.section-page__base,
+.section-page__top {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Pictures fade and settle into place one after another, top to bottom,
+   while the butterflies are still on their way out. */
+.section-page__el {
+  opacity: 0;
+  transform: translateY(4%) scale(0.94);
+}
+.section-page.is-revealed .section-page__el {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(0.35s + var(--reveal) * 0.12s);
+}
+
+/* ---------- butterflies (ButterflyBurst.tsx) ---------- */
+
+.butterflies {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+}
+.butterfly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform, opacity;
+}
+.butterfly img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.35));
+  animation: butterfly-flap var(--flap, 140ms) ease-in-out infinite alternate;
+}
+@keyframes butterfly-flap {
+  from { transform: perspective(300px) rotateY(0deg); }
+  to { transform: perspective(300px) rotateY(68deg); }
 }
 
 /* Phones: swipe instead of arrows. Scoped for specificity over Swiper's CSS. */
@@ -113,4 +179,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .section-dialog[open] { animation: none; }
+  .section-page__el,
+  .section-page.is-revealed .section-page__el {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
