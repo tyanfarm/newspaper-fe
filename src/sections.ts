@@ -14,11 +14,20 @@ export type Section = {
   page: PageLayers
   /** Card shown on the home page. */
   card: string
+  /** Embeddable player for the video in the page's video frame (page.video). */
+  video?: string
 }
 
 export const sections: readonly Section[] = [
   { slug: 'loi-ngo', title: 'Lời ngỏ', page: pageLayers('loi-ngo'), card: cardLoiNgo },
   { slug: 'vung-ky-uc', title: 'Vùng ký ức', page: pageLayers('vung-ky-uc'), card: cardVungKyUc },
   { slug: 'cung-nhau-lon', title: 'Cùng nhau lớn', page: pageLayers('cung-nhau-lon'), card: cardCungNhauLon },
-  { slug: 'loi-tri-an', title: 'Lời tri ân', page: pageLayers('loi-tri-an'), card: cardLoiTriAn },
+  {
+    slug: 'loi-tri-an',
+    title: 'Lời tri ân',
+    page: pageLayers('loi-tri-an'),
+    card: cardLoiTriAn,
+    // Google Drive's player (the file is shared with anyone who has the link).
+    video: 'https://drive.google.com/file/d/1yMIOFIyrzB10CqOBtbtwl5qKan0Owy_F/preview',
+  },
 ]

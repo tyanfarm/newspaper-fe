@@ -46,6 +46,30 @@ SKIP = {'tải (7).png', 'tải (9).png', 'tải (10).png', 'tải (11).png', 't
 # Exported but not on the slide (no position to copy); listed so the run says so.
 NOT_ON_SLIDE = {('homepage', 'BÁO TƯỜNG 20.11-5.png'), ('homepage', 'BÁO TƯỜNG 20.11-6.png')}
 
+# The redesigned home page (design/update-v1/homepage-design.webp) reuses the
+# homepage exports at partly new places. Entries here replace the ones above
+# for that slide only (None = no special search, use SIFT).
+SLIDE_OVERRIDES = {
+    'homepage-design.webp': dict(
+        fallback={
+            ('homepage', 'Bản sao BÁO TƯỜNG 20.11-8.png'): dict(region=(2300, 0, 3179, 400), scales=(0.8, 1.3, 11), rots=(0,), flip=False, count=1),
+            # Clouds are soft and semi-transparent: no features to match, so
+            # placed by eye against the design.
+            ('update-v1', 'BÁO TƯỜNG 20.11 (2).png'): dict(method='fixed', M=[[1, 0, -25], [0, 1, -350]]),
+            ('update-v1', 'BÁO TƯỜNG 20.11 (1).png'): dict(method='fixed', M=[[1, 0, 900], [0, 1, -350]]),
+            ('update-v1', 'BÁO TƯỜNG 20.11.png'): dict(method='fixed', M=[[1, 0, 1500], [0, 1, 1300]]),
+            # Tucked behind the Cùng nhau lớn card; only a sliver of its brown
+            # outline shows at the card's right edge.
+            ('cung_nhau_lon', 'BÁO TƯỜNG 20.11 (11).png'): dict(method='fixed', M=[[1, 0, 1281], [0, 1, 2492]]),
+            # Golden sparkles around the lamp: SIFT's best guess (too faint to score).
+            ('homepage', 'BÁO TƯỜNG 20.11-5.png'): dict(method='fixed', M=[[1.239, 0, -289], [0, 1.239, 2520]]),
+        },
+        # The birds in the exported flock are not arranged as on the page, and
+        # the light ribbon is not the ring drawn around the lamp.
+        not_on_slide={('homepage', 'Bản sao của BÁO TƯỜNG 20.11.png'), ('homepage', 'BÁO TƯỜNG 20.11-6.png')},
+    ),
+}
+
 
 def nfc(s):
     return unicodedata.normalize('NFC', s)
@@ -174,16 +198,19 @@ def main():
     kp_s, des_s = sift.detectAndCompute(gray, None)
 
     group = os.path.basename(os.path.normpath(folder))
+    override = SLIDE_OVERRIDES.get(os.path.basename(slide_path), {})
+    fallback = {**FALLBACK, **override.get('fallback', {})}
+    not_on_slide = override.get('not_on_slide', NOT_ON_SLIDE)
     placements = []
     for name in sorted(os.listdir(folder), key=nfc):
         key = nfc(name)
         if key in SKIP or not key.lower().endswith('.png'):
             continue
-        if (group, key) in NOT_ON_SLIDE:
+        if (group, key) in not_on_slide:
             print(f'not on slide: {key}', file=sys.stderr)
             continue
         E = load_rgba(os.path.join(folder, name))
-        fb = FALLBACK.get((group, key))
+        fb = fallback.get((group, key))
         if fb and fb.get('method') == 'fixed':
             found = [dict(M=fb['M'], method='fixed')]
         elif fb:

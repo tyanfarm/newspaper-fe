@@ -1,23 +1,30 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { elementDelay, textDone, textSchedule } from './revealTiming'
+import type { Box } from './sectionLayers'
 import type { Section } from './sections'
 
 type SectionPageProps = {
   section: Section
-  /** True while this page is the one on screen; each time it becomes so, its pictures appear again. */
+  /** True while this page is the one on screen; each time it becomes so, it plays its entrance again. */
   active: boolean
 }
 
 const pct = (v: number) => `${v * 100}%`
+const place = (b: Box) => ({ left: pct(b.x), top: pct(b.y), width: pct(b.w), height: pct(b.h) })
 
 /**
  * A section page rebuilt in layers: paper, then each picture in its exact
- * place on the slide, then the text on top. When the page comes on screen
- * the pictures fade in one after another, top to bottom.
+ * place on the slide, then the rest of the slide, then the text. When the page
+ * comes on screen the pictures fade in one after another, top to bottom;
+ * once they are all in place the text writes itself out line by line, and
+ * then the video (if the page has one) appears in its frame.
  */
 export default function SectionPage({ section, active }: SectionPageProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
   const { page } = section
+  const widths = page.lines.map((l) => l.w)
+  const schedule = textSchedule(widths, page.elements.length)
 
   useEffect(() => {
     const root = ref.current
@@ -41,6 +48,24 @@ export default function SectionPage({ section, active }: SectionPageProps) {
       style={{ '--ratio': page.width / page.height } as CSSProperties}
     >
       <img className="section-page__base" src={page.base} alt="" loading="lazy" decoding="async" />
+      {page.video && (
+        // Appears once the text has been written out.
+        <div
+          className="section-page__video"
+          style={{ ...place(page.video), '--delay': `${textDone(widths, page.elements.length).toFixed(3)}s` } as CSSProperties}
+        >
+          <img src={page.video.poster} alt="" loading="lazy" decoding="async" />
+          {/* Mounted only while on screen: leaving the page stops the video. */}
+          {active && section.video && (
+            <iframe
+              src={section.video}
+              title={`Video – ${section.title}`}
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+            />
+          )}
+        </div>
+      )}
       {page.elements.map((el) => (
         <img
           key={el.url}
@@ -49,10 +74,32 @@ export default function SectionPage({ section, active }: SectionPageProps) {
           alt=""
           loading="lazy"
           decoding="async"
-          style={{ left: pct(el.x), top: pct(el.y), width: pct(el.w), height: pct(el.h), '--reveal': el.reveal } as CSSProperties}
+          style={{ ...place(el), '--delay': `${elementDelay(el.reveal)}s` } as CSSProperties}
         />
       ))}
       <img className="section-page__top" src={page.top} alt={section.title} loading="lazy" decoding="async" />
+      {page.lines.map((line, i) => (
+        <div
+          key={i}
+          className="section-page__line"
+          style={
+            {
+              ...place(line),
+              '--line-start': `${schedule[i].start.toFixed(3)}s`,
+              '--line-dur': `${schedule[i].duration.toFixed(3)}s`,
+            } as CSSProperties
+          }
+        >
+          {/* The whole text layer, shifted so this line's box shows through. */}
+          <img
+            src={page.text}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            style={{ left: pct(-line.x / line.w), top: pct(-line.y / line.h), width: pct(1 / line.w), height: pct(1 / line.h) }}
+          />
+        </div>
+      ))}
     </div>
   )
 }

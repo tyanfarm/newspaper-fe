@@ -119,6 +119,7 @@
   max-width: none;
   user-select: none;
   -webkit-user-drag: none;
+  pointer-events: none; /* clicks reach the page (and the video player under the layers) */
 }
 .section-page__base,
 .section-page__top {
@@ -139,7 +140,60 @@
   transition:
     opacity 0.7s ease-out,
     transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
-  transition-delay: calc(0.35s + var(--reveal) * 0.12s);
+  transition-delay: var(--delay); /* revealTiming.ts */
+}
+
+/* Then the text writes itself out, line by line, left to right: a soft-edged
+   mask slides across each line, starting when the line before is well along
+   (--line-start, --line-dur: revealTiming.ts). */
+.section-page__line {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  -webkit-mask-image: linear-gradient(90deg, #000 40%, transparent 50%);
+  mask-image: linear-gradient(90deg, #000 40%, transparent 50%);
+  -webkit-mask-size: 250% 100%;
+  mask-size: 250% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 100% 0;
+  mask-position: 100% 0;
+}
+.section-page.is-revealed .section-page__line {
+  opacity: 1;
+  animation: line-write var(--line-dur) linear var(--line-start) both;
+}
+@keyframes line-write {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+  to { -webkit-mask-position: 0 0; mask-position: 0 0; }
+}
+
+/* The video plays in the page's video frame, under the flowers drawn over it,
+   and appears once the text has been written (--delay: revealTiming.ts). */
+.section-page__video {
+  position: absolute;
+  background: #000;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.96);
+}
+.section-page.is-revealed .section-page__video {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.8s ease-out var(--delay),
+    transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) var(--delay),
+    visibility 0s linear var(--delay);
+}
+.section-page__video img,
+.section-page__video iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 /* ---------- butterflies (ButterflyBurst.tsx) ---------- */
@@ -184,5 +238,19 @@
     opacity: 1;
     transform: none;
     transition: none;
+  }
+  .section-page__video,
+  .section-page.is-revealed .section-page__video {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition: none;
+  }
+  .section-page__line,
+  .section-page.is-revealed .section-page__line {
+    opacity: 1;
+    -webkit-mask-image: none;
+    mask-image: none;
+    animation: none;
   }
 }

@@ -12,19 +12,29 @@ Outputs (under src/assets/sections/):
                              paper with no text or pictures, rebuilt from the four
                              slides (they share one template). Shows behind an
                              element until it has appeared.
-  <slug>/top.webp            the slide itself, transparent wherever an element
-                             shows through; keeps the text, borders and anything
+  <slug>/top.webp            the slide itself without its text, transparent wherever
+                             an element shows through; keeps borders and anything
                              drawn over an element, so the original stacking holds
+  <slug>/text.webp           the slide's text alone (titles and paragraphs), shown
+                             line by line through the boxes listed in layers.json
   <slug>/el-NN.webp          each element exactly as placed (scale, rotation, flip)
   <slug>/layers.json         each element's box as fractions of the slide, in paint
-                             order, with a reveal order (top to bottom)
+                             order, with a reveal order (top to bottom); and each
+                             line of text's box, in reading order
+  <slug>/video-poster.webp   (pages listed in VIDEO) the still in the video frame,
+                             shown until the player loads; top.webp is clear
+                             there, so the player sits under the elements drawn
+                             over the frame (flowers, the wax seal)
 
-Stacked base → elements → top, each page matches its slide: the script
+Stacked base → elements → top → text, each page matches its slide: the script
 re-composites the encoded files and prints the error to prove it.
+
+    python scripts/build-section-layers.py [slug …]   # only these pages
 """
 import itertools
 import json
 import os
+import sys
 import unicodedata
 
 import cv2
@@ -44,6 +54,9 @@ PAPER_SCALE = 0.5  # base.webp: soft paper, half size is plenty
 BORDER = 150  # px (at OUT_SCALE) of airmail stripes along each edge
 MISMATCH_LO, MISMATCH_HI = 14, 30  # per-channel levels: ramp from "same" to "different"
 QUALITY = 84
+# Video frames (slide px, x0 y0 x1 y1): the page plays a video there.
+VIDEO = {'loi-tri-an': (427, 2771, 2751, 4321)}
+VIDEO_MARGIN = 160  # slide px around the frame that the base turns to plain paper
 
 
 def nfc(s):
@@ -196,6 +209,116 @@ def section_base(O, cover, paper):
     return base.round().clip(0, 255).astype(np.uint8)
 
 
+# Where the text sits on each slide (slide pixels: x0, y0, x1, y1), in reading
+# order. Blocks are generous boxes; the lines inside are found automatically.
+# A 'title' block is written out as one line.
+TEXT_BLOCKS = {
+    'loi-ngo': [('title', (1011, 337, 2546, 899)), ('body', (131, 1198, 3014, 2958)),
+                ('body', (131, 2977, 1666, 4119)), ('body', (1048, 4156, 1573, 4437))],
+    'vung-ky-uc': [('title', (786, 262, 2846, 618)), ('body', (431, 655, 3060, 3557))],
+    'cung-nhau-lon': [('title', (318, 150, 2415, 580)), ('body', (200, 600, 1600, 1900)),
+                      ('body', (1690, 640, 3050, 1950)), ('body', (200, 2860, 1600, 3960)),
+                      ('body', (1680, 2790, 3050, 4010))],
+    'loi-tri-an': [('title', (1254, 431, 2902, 768)), ('body', (243, 786, 2958, 2584))],
+}
+INK_KERNEL = {'title': 61, 'body': 15}  # px at OUT_SCALE: wider than the strokes
+INK_LEVEL = 40  # how much darker than its surroundings a pixel must be, in any channel
+
+
+def find_text(O, top_alpha, blocks):
+    """Text pixels and line boxes (x0, y0, x1, y1, in output px, reading order).
+
+    Ink = strokes darker than their neighbourhood (black-hat), on the top
+    layer only (text is never part of an element). Lines are the bands of
+    rows that hold ink; Vietnamese diacritics stay with their line.
+    """
+    h, w = O.shape[:2]
+    ink = np.zeros((h, w), bool)
+    lines = []
+    for kind, box in blocks:
+        x0, y0, x1, y1 = (round(v * OUT_SCALE) for v in box)
+        sub = O[y0:y1, x0:x1].astype(np.uint8)
+        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (INK_KERNEL[kind],) * 2)
+        dark = np.max([cv2.morphologyEx(sub[..., c], cv2.MORPH_BLACKHAT, k) for c in range(3)], axis=0)
+        m = ((dark > INK_LEVEL) & (top_alpha[y0:y1, x0:x1] > 0.5)).astype(np.uint8)
+        n, lab, st, _ = cv2.connectedComponentsWithStats(m)
+        m = np.isin(lab, [i for i in range(1, n) if st[i, cv2.CC_STAT_AREA] >= 6])
+        ink[y0:y1, x0:x1] |= m
+        if not m.any():
+            continue
+        if kind == 'title':
+            ys, xs = np.nonzero(m)
+            lines.append((x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1))
+            continue
+        rows = m.sum(axis=1) > 4
+        runs, start = [], None
+        for y, on in enumerate(list(rows) + [False]):
+            if on and start is None:
+                start = y
+            elif not on and start is not None:
+                if runs and start - runs[-1][1] <= 6:  # diacritics a few px above their letters
+                    runs[-1][1] = y
+                else:
+                    runs.append([start, y])
+                start = None
+        tall = np.median([b - a for a, b in runs])
+        merged = []
+        for a, b in runs:  # leftover slivers join the nearest line
+            if merged and (b - a < 0.45 * tall or merged[-1][1] - merged[-1][0] < 0.45 * tall):
+                merged[-1][1] = b
+            else:
+                merged.append([a, b])
+        for a, b in merged:
+            cols = np.nonzero(m[a:b].any(axis=0))[0]
+            lines.append((x0 + cols.min(), y0 + a, x0 + cols.max() + 1, y0 + b))
+    pad = 4
+    lines = [(max(0, a - pad), max(0, b - pad), min(w, c + pad), min(h, d + pad)) for a, b, c, d in lines]
+    return ink, lines
+
+
+def fill_under(O, mask, keep):
+    """What was under the masked pixels: the average colour of the `keep`
+    surroundings, widening the search until there are enough of them.
+    (No paper grain: the rebuilt clean paper carries faint traces of the
+    other slides' text, which would print through as ghost letters.)"""
+    keep = keep.astype(np.float32)
+    fill = np.zeros_like(O)
+    todo = mask.copy()
+    for sigma in (4, 10, 25, 60):
+        weight = cv2.GaussianBlur(keep, (0, 0), sigma)
+        mean = cv2.GaussianBlur(O * keep[..., None], (0, 0), sigma) / np.maximum(weight, 1e-6)[..., None]
+        ok = todo & (weight > 0.15)
+        fill[ok] = mean[ok]
+        todo &= ~ok
+    fill[todo] = mean[todo]
+    return fill
+
+
+def split_text(O, top_alpha, footprint, blocks):
+    """Take the text off the top layer into its own layer.
+
+    Returns (top_rgb, top_alpha) with the text removed (under it: the element
+    it was written on, else the paper, else the surroundings filled in) and
+    the text layer (RGBA, the slide's own pixels on the strokes), plus lines.
+    """
+    ink, lines = find_text(O, top_alpha, blocks)
+    stroke = cv2.dilate(ink.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool)
+    text_alpha = cv2.GaussianBlur(stroke.astype(np.float32), (0, 0), 0.7)
+    text = np.dstack([O, text_alpha * 255])
+
+    # On an element: clear the top layer (wide enough to take the text's
+    # outline with it) so the element shows. Elsewhere: paint the text out.
+    on_element = cv2.dilate(ink.astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool) & (footprint > 0.5)
+    fill_mask = cv2.dilate(ink.astype(np.uint8), np.ones((7, 7), np.uint8)).astype(bool) & ~on_element
+    clear_of_text = ~cv2.dilate(ink.astype(np.uint8), np.ones((11, 11), np.uint8)).astype(bool)
+    filled = fill_under(O, fill_mask, clear_of_text)
+    top_rgb = O.copy()
+    top_rgb[fill_mask] = filled[fill_mask]
+    top_alpha = top_alpha.copy()
+    top_alpha[on_element] = 0
+    return top_rgb, top_alpha, text, lines
+
+
 def build_section(slug, O, folder, spec, paper):
     h, w = O.shape[:2]
     out_dir = os.path.join(OUT, slug)
@@ -215,7 +338,19 @@ def build_section(slug, O, folder, spec, paper):
         cover[r] = 1 - (1 - cover[r]) * (1 - L[2][..., 3] / 255)
 
     base_file = os.path.join(out_dir, 'base.webp')
-    save(Image.fromarray(section_base(O, cover, paper)), base_file)
+    base = section_base(O, cover, paper)
+    if slug in VIDEO:
+        # The video appears late, so until then its frame (and a margin round
+        # it) is plain paper, with the flowers that lie over it.
+        x0, y0, x1, y1 = (round(v * PAPER_SCALE) for v in VIDEO[slug])
+        d = round(VIDEO_MARGIN * PAPER_SCALE)
+        m = np.zeros(base.shape[:2], np.float32)
+        m[max(0, y0 - d):y1 + d, max(0, x0 - d):x1 + d] = 1
+        m = cv2.GaussianBlur(m, (0, 0), 6)[..., None]
+        # One flat paper colour: the rebuilt paper keeps faint traces of the other slides here.
+        plain = np.median(paper.reshape(-1, 3), axis=0)
+        base = (base * (1 - m) + plain * m).round().clip(0, 255).astype(np.uint8)
+    save(Image.fromarray(base), base_file)
     # Composite against the base as the browser will see it (decoded, upscaled).
     B = np.asarray(Image.open(base_file).convert('RGB').resize((w, h), Image.BILINEAR)).astype(np.float32)
 
@@ -240,8 +375,24 @@ def build_section(slug, O, folder, spec, paper):
     # element lingers on the page before it appears.
     footprint = np.clip((cover - 0.01) / 0.05, 0, 1)
     top_alpha = 1 - footprint * (1 - mismatch)
-    top = np.dstack([O, top_alpha * 255]).round().clip(0, 255).astype(np.uint8)
+
+    # The text goes into a layer of its own, written out line by line later.
+    top_rgb, top_alpha, text, lines = split_text(O, top_alpha, footprint, TEXT_BLOCKS[slug])
+
+    video = None
+    if slug in VIDEO:
+        # The player goes under the elements (everything over the frame on the
+        # slide is drawn over it: flowers, the wax seal) and over the base, so
+        # the top layer is clear there, the frame's soft edge included.
+        x0, y0, x1, y1 = (round(v * OUT_SCALE) for v in VIDEO[slug])
+        frame = (slice(y0, y1), slice(x0, x1))
+        top_alpha[max(0, y0 - 1):y1 + 1, max(0, x0 - 1):x1 + 1] = 0
+        save(Image.fromarray(O[frame].round().clip(0, 255).astype(np.uint8)), os.path.join(out_dir, 'video-poster.webp'))
+        video = dict(x=round(x0 / w, 5), y=round(y0 / h, 5), w=round((x1 - x0) / w, 5), h=round((y1 - y0) / h, 5))
+
+    top = np.dstack([top_rgb, top_alpha * 255]).round().clip(0, 255).astype(np.uint8)
     save(Image.fromarray(top, 'RGBA'), os.path.join(out_dir, 'top.webp'), exact=False)
+    save(Image.fromarray(text.round().clip(0, 255).astype(np.uint8), 'RGBA'), os.path.join(out_dir, 'text.webp'), exact=False)
 
     elements = []
     for rank, i in enumerate(order):
@@ -258,22 +409,38 @@ def build_section(slug, O, folder, spec, paper):
         e['reveal'] = n
     meta = dict(width=spec['size'][0], height=spec['size'][1],
                 elements=[dict(src=e['src'], x=round(e['x'], 5), y=round(e['y'], 5), w=round(e['w'], 5),
-                               h=round(e['h'], 5), reveal=e['reveal']) for e in elements])
+                               h=round(e['h'], 5), reveal=e['reveal']) for e in elements],
+                lines=[dict(x=round(a / w, 5), y=round(b / h, 5), w=round((c - a) / w, 5), h=round((d - b) / h, 5))
+                       for a, b, c, d in lines])
+    if video:
+        meta['video'] = video
     with open(os.path.join(out_dir, 'layers.json'), 'w') as fh:
         json.dump(meta, fh, indent=1)
 
     # Proof: re-composite the encoded files and compare with the slide.
     R = B.copy()
+    if video:  # the player's still stands in for the video
+        x0, y0, x1, y1 = (round(v * OUT_SCALE) for v in VIDEO[slug])
+        R[y0:y1, x0:x1] = np.asarray(Image.open(os.path.join(out_dir, 'video-poster.webp')).convert('RGB')).astype(np.float32)
     for e in elements:
         im = np.asarray(Image.open(os.path.join(out_dir, e['src'])).convert('RGBA')).astype(np.float32)
         x0, y0 = e['px']
         R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]] = over(im[..., :3], im[..., 3] / 255, R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]])
     T = np.asarray(Image.open(os.path.join(out_dir, 'top.webp')).convert('RGBA')).astype(np.float32)
     R = over(T[..., :3], T[..., 3] / 255, R)
+    before_text = R.copy()
+    X = np.asarray(Image.open(os.path.join(out_dir, 'text.webp')).convert('RGBA')).astype(np.float32)
+    shown = np.zeros(X.shape[:2], bool)  # the page shows text only inside line boxes
+    for a, b, c, d in lines:
+        shown[b:d, a:c] = True
+    R = np.where(shown[..., None], over(X[..., :3], X[..., 3] / 255, R), R)
     err = np.abs(R - O)
     kb = sum(os.path.getsize(os.path.join(out_dir, f)) for f in os.listdir(out_dir)) // 1024
-    print(f'{slug}: {len(elements)} elements, mean error {err.mean():.2f}/255, '
+    print(f'{slug}: {len(elements)} elements, {len(lines)} lines, mean error {err.mean():.2f}/255, '
           f'pixels off by >24: {(err.max(axis=2) > 24).mean() * 100:.2f}%, {kb} KB')
+    if os.environ.get('PREVIEW_DIR'):  # before/after the text is written, for checking by eye
+        side = np.hstack([before_text, R]).round().clip(0, 255).astype(np.uint8)
+        Image.fromarray(side).resize((1400, 990)).save(os.path.join(os.environ['PREVIEW_DIR'], f'text-{slug}.png'))
     for e in elements:
         print(f"  {e['src']}  visible {e['seen'] * 100:3.0f}%  {e['file']}")
 
@@ -287,7 +454,10 @@ def main():
     slides = np.stack(slides)
 
     paper = clean_paper(slides)
+    only = set(sys.argv[1:])
     for (slug, _, folder), O in zip(SECTIONS, slides):
+        if only and slug not in only:
+            continue
         spec = json.load(open(os.path.join(SRC, 'placements', f'{folder}.json')))
         build_section(slug, O, os.path.join(SRC, 'objects-png', folder), spec, paper)
 

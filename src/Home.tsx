@@ -15,88 +15,93 @@ type HomeProps = {
 }
 
 const art = import.meta.glob<string>('./assets/cover/*.webp', { eager: true, import: 'default' })
+const src = (name: string) => art[`./assets/cover/${name}.webp`]
 
-// The sea scene keeps slide 1's arrangement: every piece is placed in slide-1
-// pixels (scripts/build-cover-scene.py), scaled by --k, with the slide's bottom
-// edge on the page's bottom edge. The logos keep their distance from the
-// slide's right edge, so they stay in the bottom-right corner on wide screens.
-const RIGHT_ANCHORED: Record<string, string> = { 'logo-kdi': 'KDI Education', 'logo-kdc': 'KDC Education' }
-const k = (px: number) => `calc(${px} * var(--k))`
-const kLogo = (px: number) => `calc(${px} * var(--k-logo))` // logos may be drawn larger on phones
+// Every piece keeps its box from the design (design/update-v1/homepage-design.webp,
+// in its pixels; scripts/build-cover-scene.py). The page hands those numbers to
+// CSS as custom properties, and home.css scales and anchors each group (header,
+// cards, sea) to suit the screen.
+type Box = { x: number; y: number; w: number; h: number }
+const vars = (v: Record<string, number | string>) => v as CSSProperties
 
-const waveRow = scene.elements.find((el) => el.name === 'waves')!
-// Copies of the right-hand waves carry the sea on to the right edge of wide screens.
+// Lighthouse and its light sit a little lower than the waves on wide screens
+// (home.css: --lh-drop), so they can be drawn larger without meeting the title.
+const LIGHTHOUSE_GROUP = new Set(['lighthouse', 'beam', 'sparkle'])
+const seaVars = (el: Box) => vars({ '--x': el.x, '--b': scene.height - el.y - el.h, '--w': el.w })
+
+const board = scene.board
+const cardBox = Object.fromEntries(scene.cards.map((c) => [c.name, c]))
+const pct = (n: number) => `${(n * 100).toFixed(3)}%`
+
+const waveRow = scene.sea.find((el) => el.name === 'waves')!
+// Copies of the waves carry the sea on to the right edge of wide screens.
 const EXTRA_WAVES = 3
-const WAVE_OVERLAP = 300 // slide px each copy tucks under the previous one
+const WAVE_OVERLAP = 300 // design px each copy tucks under the previous one
+
+const LOGO_ALT: Record<string, string> = { 'logo-kdc': 'KDC Education', 'logo-kdi': 'KDI Education' }
 
 export default function Home({ onOpen }: HomeProps) {
+  const backCloud = scene.clouds.find((c) => c.name === 'cloud-3')!
   return (
     <main className="home">
-      <img className="home__deco home__bird home__bird--1" src={bird1} alt="" />
-      <img className="home__deco home__bird home__bird--2" src={bird2} alt="" />
-      <img className="home__deco home__bird home__bird--3" src={bird3} alt="" />
-
-      <div className="home__scene">
-        {scene.elements.map((el) => {
-          const label = RIGHT_ANCHORED[el.name]
-          const scale = label ? kLogo : k
-          const style: CSSProperties = {
-            [label ? 'right' : 'left']: scale(label ? scene.width - el.x - el.w : el.x),
-            bottom: scale(scene.height - el.y - el.h),
-            width: scale(el.w),
-            zIndex: el.z,
-          }
-          return (
+      <div className="home__sky" aria-hidden="true">
+        {scene.clouds
+          .filter((c) => c !== backCloud)
+          .map((c) => (
             <img
-              key={el.name}
-              className={`home__scene-el home__scene-el--${el.name}`}
-              src={art[`./assets/cover/${el.name}.webp`]}
-              alt={label ?? ''}
-              style={style}
-            />
-          )
-        })}
-        <div
-          className="home__waves-more"
-          aria-hidden="true"
-          style={{
-            left: k(waveRow.x + waveRow.w - WAVE_OVERLAP),
-            bottom: k(scene.height - waveRow.y - waveRow.h),
-            zIndex: waveRow.z,
-          }}
-        >
-          {Array.from({ length: EXTRA_WAVES }, (_, i) => (
-            <img
-              key={i}
-              src={waves}
+              key={c.name}
+              className={`home__cloud home__cloud--${c.name}`}
+              src={src(c.name)}
               alt=""
-              style={{ width: k(waveRow.w), marginLeft: i ? k(-WAVE_OVERLAP) : 0, scale: i % 2 ? '1' : '-1 1' }}
+              style={vars({ '--x': c.x, '--y': c.y, '--w': c.w })}
             />
+          ))}
+      </div>
+
+      <div className="home__sea" aria-hidden="true">
+        <img className="home__sea-el home__sea-el--lighthouse-group home__sea-el--cloud" src={src(backCloud.name)} alt="" style={seaVars(backCloud)} />
+        {scene.sea.map((el) => (
+          <img
+            key={el.name}
+            className={`home__sea-el home__sea-el--${el.name}${LIGHTHOUSE_GROUP.has(el.name) ? ' home__sea-el--lighthouse-group' : ''}`}
+            src={src(el.name)}
+            alt=""
+            style={{ ...seaVars(el), zIndex: el.z + 1 }}
+          />
+        ))}
+        <div className="home__waves-more" style={{ ...seaVars({ ...waveRow, x: waveRow.x + waveRow.w - WAVE_OVERLAP }), zIndex: waveRow.z + 1 }}>
+          {Array.from({ length: EXTRA_WAVES }, (_, i) => (
+            <img key={i} src={waves} alt="" style={{ scale: i % 2 ? '1' : '-1 1' }} />
           ))}
         </div>
       </div>
 
-      <div className="home__center">
-        <h1 className="home__heading">
-          <img className="home__title" src={title} alt="Thắp sáng – Số 2011" fetchPriority="high" />
-          <span className="home__subtitle">
-            Ấn phẩm của <span className="n">L</span>
-            <span className="r">2</span>
-            <span className="n">T</span> <span className="r">N</span>
-            <span className="n">E</span>
-            <span className="r">W</span>
-            <span className="n">S</span>
-          </span>
-        </h1>
+      <img className="home__bird home__bird--1" src={bird1} alt="" />
+      <img className="home__bird home__bird--2" src={bird2} alt="" />
+      <img className="home__bird home__bird--3" src={bird3} alt="" />
+      <img className="home__bird home__bird--4" src={bird1} alt="" />
 
-        <nav className="home__cards" aria-label="Các mục">
-          {sections.map((section, i) => (
+      <h1 className="home__heading" style={vars({ '--x': scene.title.x, '--y': scene.title.y, '--w': scene.title.w })}>
+        <img className="home__title" src={title} alt="Thắp sáng – Số 2011. Ấn phẩm của L2T NEWS" fetchPriority="high" />
+      </h1>
+
+      <div className="home__logos" style={vars({ '--right': scene.width - Math.max(...scene.logos.map((l) => l.x + l.w)) })}>
+        {scene.logos.map((l) => (
+          <img key={l.name} className={`home__logo home__logo--${l.name}`} src={src(l.name)} alt={LOGO_ALT[l.name]} style={vars({ '--w': l.w })} />
+        ))}
+      </div>
+
+      <nav className="home__board" aria-label="Các mục" style={vars({ '--x': board.x, '--y': board.y, '--w': board.w, '--h': board.h })}>
+        {sections.map((section, i) => {
+          const c = cardBox[section.slug]
+          return (
             <button
               key={section.slug}
               type="button"
               className="home__card"
               aria-label={section.title}
               data-slug={section.slug}
+              style={{ left: pct((c.x - board.x) / board.w), top: pct((c.y - board.y) / board.h), width: pct(c.w / board.w) }}
               onClick={(e) => {
                 const r = e.currentTarget.getBoundingClientRect()
                 onOpen(i, { x: r.left + r.width / 2, y: r.top + r.height / 2 })
@@ -104,9 +109,9 @@ export default function Home({ onOpen }: HomeProps) {
             >
               <img src={section.card} alt="" />
             </button>
-          ))}
-        </nav>
-      </div>
+          )
+        })}
+      </nav>
     </main>
   )
 }

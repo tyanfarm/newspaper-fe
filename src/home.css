@@ -1,82 +1,159 @@
 /*
- * Cover home page. Every size is a multiple of --u, one unit of a virtual
- * canvas that always fits the viewport:
- *   landscape: 100u × 56.25u (16:9)  → --u = min(1vw, 1.7778vh)
- *   portrait:  100u × 216.7u (9:19.5) → --u = min(1vw, 0.4615vh)
- * The centre column (title + cards) sits on that canvas; decorations are
- * pinned to the viewport edges so wider screens just show more sky and sea.
+ * Home page, laid out from the design's own numbers: Home.tsx gives each piece
+ * its box in design pixels (--x, --y, --w; --b = distance from the bottom),
+ * and the scales below turn design pixels into screen pixels, per group:
+ *   --kh  header (title with its subtitle, logos)
+ *   --ks  sea (lighthouse, its light, waves, ship), anchored bottom-left
+ *   --kc  clouds and birds
+ * The cards keep the design's arrangement inside .home__board, which is sized
+ * here per layout. Three layouts:
+ *   wide screens   title top-left, cards in a 2×2 board on the right, a big
+ *                  lighthouse under the title; canvas 100u × 56.25u (16:9)
+ *   tablets        upright, close to the design's shape: the design as drawn
+ *   phones         tall: header, then the board at full width, then the sea
  */
 .home {
   --u: min(1vw, 1.7778vh);
-  /* Sea scene: slide-1 pixels → screen, sized so the lighthouse is 41.6u tall. */
-  --k: calc(var(--u) * 41.6 / 2063);
-  --k-logo: var(--k);
-  --sea-h: calc(var(--k) * 461); /* height of the wave row */
+  /* horizontal / vertical slack around the canvas, kept centred */
+  --cx: max(0px, (100vw - 100 * var(--u)) / 2);
+  --cy: max(0px, (100svh - 56.25 * var(--u)) / 2);
+  --kh: calc(var(--u) * 47 / 3039); /* title 47u wide */
+  --kl: calc(var(--u) * 0.024); /* logos */
+  --ks: calc(var(--u) * 0.0235); /* lighthouse ≈ 48u tall */
+  --lh-drop: calc(var(--u) * 7);
+  --kc: calc(var(--u) * 0.0235);
   --navy: #1f3f8f;
-  --red: #c0392b;
 
   position: relative;
   height: 100svh;
   overflow: hidden;
   isolation: isolate;
   background:
-    linear-gradient(to bottom, rgb(194 214 223 / 0.9), rgb(194 214 223 / 0) 45%),
     linear-gradient(rgb(236 224 204 / 0.45), rgb(236 224 204 / 0.45)),
     url('./assets/cover/paper-tile.webp') center top / calc(var(--u) * 34) auto repeat,
     #e9dcc6;
 }
 
-/* ---------- centre column ---------- */
+/* ---------- sky ---------- */
 
-.home__center {
+.home__sky {
   position: absolute;
-  inset: 0 0 var(--sea-h) 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: calc(var(--u) * 0.5);
-  pointer-events: none; /* let clicks through the empty parts; cards re-enable */
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
 }
+.home__cloud {
+  position: absolute;
+  max-width: none;
+  height: auto;
+  left: calc(var(--cx) + var(--x) * var(--kc));
+  top: calc(var(--y) * var(--kc));
+  width: calc(var(--w) * var(--kc));
+}
+/* Wide screens: the sky wash spans the top, the clouds fill the gaps between
+   the title, the lighthouse and the cards. */
+.home__cloud--sky {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 64%;
+  opacity: 0.9;
+}
+.home__cloud--cloud-1 { left: calc(var(--cx) + var(--u) * 26); top: calc(var(--u) * -5); width: calc(var(--u) * 58); }
+.home__cloud--cloud-2 { left: calc(var(--cx) + var(--u) * 27); top: calc(var(--u) * 15); width: calc(var(--u) * 32); }
 
-.home__heading {
-  margin: 0;
+/* ---------- sea ---------- */
+
+.home__sea {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+}
+.home__sea-el,
+.home__waves-more {
+  position: absolute;
+  left: calc(var(--x) * var(--ks));
+  bottom: calc(var(--b) * var(--ks));
+}
+.home__sea-el {
+  width: calc(var(--w) * var(--ks));
+  max-width: none;
+  height: auto;
+}
+.home__sea-el--lighthouse-group { translate: 0 var(--lh-drop); }
+.home__sea-el--cloud { z-index: 0; }
+.home__waves-more {
   display: flex;
-  flex-direction: column;
   align-items: flex-end;
 }
+.home__waves-more img {
+  flex: none;
+  width: calc(var(--w) * var(--ks));
+  max-width: none;
+  height: auto;
+}
+.home__waves-more img + img { margin-left: calc(-300 * var(--ks)); }
 
+/* ---------- birds ---------- */
+
+.home__bird {
+  position: absolute;
+  z-index: 2;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+.home__bird--1 { left: calc(var(--cx) + var(--u) * 41); top: calc(var(--cy) + var(--u) * 33); width: calc(var(--u) * 6.5); }
+.home__bird--2 { left: calc(var(--cx) + var(--u) * 29); top: calc(var(--cy) + var(--u) * 22); width: calc(var(--u) * 4.5); transform: scaleX(-1); }
+.home__bird--3 { left: calc(var(--cx) + var(--u) * 36); top: calc(var(--cy) + var(--u) * 17); width: calc(var(--u) * 4); }
+.home__bird--4 { display: none; }
+
+/* ---------- header ---------- */
+
+.home__heading {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--cx) + var(--u) * 2);
+  top: calc(var(--u) * 1.4);
+  width: calc(var(--w) * var(--kh));
+  margin: 0;
+  pointer-events: none;
+}
 .home__title {
-  width: calc(var(--u) * 52);
+  width: 100%;
+  height: auto;
+}
+.home__logos {
+  position: absolute;
+  z-index: 3;
+  right: calc(var(--cx) + var(--u) * 2);
+  top: calc(var(--u) * 1.2);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--kl) * 40);
+}
+.home__logo {
+  width: calc(var(--w) * var(--kl));
   height: auto;
 }
 
-.home__subtitle {
-  margin: calc(var(--u) * 0.6) calc(var(--u) * 0.8) 0 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: calc(var(--u) * 1.55);
-  font-weight: 400;
-  line-height: 1.2;
-  color: #1d1d1f;
-  white-space: nowrap;
-}
-.home__subtitle .n { color: var(--navy); }
-.home__subtitle .r { color: var(--red); }
+/* ---------- cards ---------- */
 
-.home__cards {
-  margin-top: calc(var(--u) * 2);
-  display: grid;
-  grid-template-columns: repeat(2, calc(var(--u) * 11.5));
-  gap: calc(var(--u) * 1.4) calc(var(--u) * 2);
-  align-items: center;
-  justify-items: center;
-  pointer-events: auto;
+.home__board {
+  position: absolute;
+  z-index: 4;
+  right: calc(var(--cx) + var(--u) * 1.6);
+  top: calc(var(--cy) + var(--u) * 6.8);
+  height: calc(var(--u) * 48.5);
+  aspect-ratio: var(--w) / var(--h);
 }
 
 .home__card {
+  position: absolute;
   display: block;
-  width: 100%;
   padding: 0;
   border: 0;
   background: none;
@@ -84,87 +161,93 @@
   border-radius: calc(var(--u) * 0.3);
 }
 .home__card img {
+  display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 calc(var(--u) * 0.35) calc(var(--u) * 0.6) rgb(0 0 0 / 0.28));
+  filter: drop-shadow(0 calc(var(--u) * 0.35) calc(var(--u) * 0.6) rgb(0 0 0 / 0.25));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 .home__card:hover img,
 .home__card:focus-visible img {
-  transform: translateY(calc(var(--u) * -0.3)) scale(1.02);
-  filter: drop-shadow(0 calc(var(--u) * 0.7) calc(var(--u) * 1) rgb(0 0 0 / 0.35));
+  transform: translateY(calc(var(--u) * -0.4)) scale(1.02);
+  filter: drop-shadow(0 calc(var(--u) * 0.8) calc(var(--u) * 1.1) rgb(0 0 0 / 0.32));
 }
 .home__card:focus-visible {
   outline: 3px solid var(--navy);
   outline-offset: 4px;
 }
 
-/* ---------- decorations ---------- */
-
-.home__deco {
-  position: absolute;
-  height: auto;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* Lighthouse, beam, waves, ship and logos, placed by Home.tsx in slide-1 pixels × --k. */
-.home__scene {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  user-select: none;
-}
-.home__scene-el {
-  position: absolute;
-  height: auto;
-  max-width: none;
-}
-.home__waves-more {
-  position: absolute;
-  display: flex;
-  align-items: flex-end;
-}
-.home__waves-more img {
-  flex: none;
-  height: auto;
-  max-width: none;
-}
-
-.home__bird { z-index: 0; }
-.home__bird--1 { right: calc(var(--u) * 13); top: calc(var(--u) * 14); width: calc(var(--u) * 7); }
-.home__bird--2 { right: calc(var(--u) * 24); top: calc(var(--u) * 25); width: calc(var(--u) * 4.5); transform: scaleX(-1); }
-.home__bird--3 { left: calc(var(--u) * 19); top: calc(var(--u) * 19); width: calc(var(--u) * 5); transform: scaleX(-1); }
-
-/* ---------- portrait (phones, tablets held upright) ---------- */
+/* ---------- tablets held upright: the design as drawn ---------- */
 
 @media (max-aspect-ratio: 1/1) {
   .home {
+    /* canvas = the design: 100u × 141.36u */
+    --u: min(1vw, 0.7074vh);
+    --cy: max(0px, (100svh - 141.36 * var(--u)) / 2);
+    --k: calc(var(--u) * 100 / 3179);
+    --kh: var(--k);
+    --kl: var(--k);
+    --ks: var(--k);
+    --kc: var(--k);
+    --lh-drop: 0px;
+    background-size: auto, calc(var(--u) * 60) auto, auto;
+  }
+
+  .home__heading {
+    left: calc(var(--cx) + var(--x) * var(--kh));
+    top: calc(var(--y) * var(--kh));
+  }
+  .home__logos {
+    right: calc(var(--cx) + var(--right) * var(--kl));
+    top: 0;
+  }
+  .home__board {
+    right: auto;
+    left: calc(var(--cx) + var(--x) * var(--k));
+    top: calc(var(--cy) + var(--y) * var(--k));
+    width: calc(var(--w) * var(--k));
+    height: auto;
+  }
+
+  .home__cloud--sky,
+  .home__cloud--cloud-1,
+  .home__cloud--cloud-2 {
+    left: calc(var(--cx) + var(--x) * var(--kc));
+    top: calc(var(--y) * var(--kc));
+    width: calc(var(--w) * var(--kc));
+    height: auto;
+  }
+
+  /* where the design's birds fly */
+  .home__bird--1 { left: calc(var(--cx) + var(--u) * -1); top: calc(var(--cy) + var(--u) * 34); width: calc(var(--u) * 11); }
+  .home__bird--2 { left: calc(var(--cx) + var(--u) * 2); top: calc(var(--cy) + var(--u) * 61); width: calc(var(--u) * 10); transform: none; }
+  .home__bird--3 { left: calc(var(--cx) + var(--u) * 34); top: calc(var(--cy) + var(--u) * 69); width: calc(var(--u) * 13); transform: scaleX(-1); }
+  .home__bird--4 { display: block; left: auto; right: calc(var(--cx) + var(--u) * 1); top: calc(var(--cy) + var(--u) * 71); width: calc(var(--u) * 12); transform: scaleX(-1); }
+}
+
+/* ---------- phones: header, then the cards at full width, then the sea ---------- */
+
+@media (max-aspect-ratio: 3/5) {
+  .home {
+    /* canvas 100u × 216.7u (9:19.5) */
     --u: min(1vw, 0.4615vh);
-    --k: calc(var(--u) * 54 / 2063);
-    --k-logo: calc(var(--k) * 1.6); /* at slide scale they are too small to read on a phone */
-    background-size: auto, auto, calc(var(--u) * 60) auto, auto;
+    --cy: 0px;
+    --kb: calc(var(--u) * 96 / 2640); /* the board fills the width */
+    --ks: calc(var(--u) * 0.05); /* lighthouse ≈ 103u tall, beside the bottom cards */
   }
 
-  .home__center {
-    inset: 0;
-    justify-content: flex-start;
-    padding-top: calc(var(--u) * 6.5);
+  .home__heading { top: calc(var(--u) * 2 + var(--y) * var(--kh)); }
+  .home__logos { top: calc(var(--u) * 1.5); }
+  .home__board {
+    left: calc(var(--cx) + var(--u) * 2);
+    top: calc(var(--u) * 31);
+    width: calc(var(--w) * var(--kb));
   }
 
-  .home__title { width: calc(var(--u) * 92); }
-  .home__subtitle { font-size: calc(var(--u) * 3.8); margin-right: calc(var(--u) * 1.5); }
-
-  .home__cards {
-    margin-top: calc(var(--u) * 5);
-    grid-template-columns: repeat(2, calc(var(--u) * 41));
-    gap: calc(var(--u) * 4.5) calc(var(--u) * 5);
-  }
-
-  .home__bird--1 { right: calc(var(--u) * 8); top: auto; bottom: calc(var(--u) * 47); width: calc(var(--u) * 15); }
-  .home__bird--2,
-  .home__bird--3 { display: none; }
+  .home__bird--1 { top: calc(var(--u) * 33); }
+  .home__bird--2 { top: calc(var(--u) * 78); }
+  .home__bird--3 { left: calc(var(--cx) + var(--u) * 40); top: calc(var(--u) * 80); }
+  .home__bird--4 { top: calc(var(--u) * 132); }
 }
 
 @media (prefers-reduced-motion: reduce) {
