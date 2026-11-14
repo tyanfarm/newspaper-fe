@@ -38,8 +38,9 @@ chồng như slide gốc**.
 
 Theo mẫu `design/update-v1/homepage-design.webp`. Mỗi thư mục con của `design/update-v1/` là các hình của
 một thẻ (ghép lại thành `card-<mục>.webp`); các file `BÁO TƯỜNG …png` nằm ngoài là mây; `title-header.png`
-là tiêu đề (cả dòng "Ấn phẩm của L2T NEWS"). Hải đăng, vệt sáng, sóng, thuyền, logo lấy từ
-`design/canva-export/objects-png/homepage/`.
+là tiêu đề (cả dòng "Ấn phẩm của L2T NEWS"); `click-in-here.png` là dòng hướng dẫn "Chạm vào từng ô để cùng
+khám phá!", được cắt đôi ở khoảng trắng sau chữ "ô" (`hint-1`, `hint-2`) để trên màn hình hẹp xuống được 2 dòng.
+Hải đăng, vệt sáng, sóng, thuyền, logo lấy từ `design/canva-export/objects-png/homepage/`.
 
 ```bash
 # 1. Dò vị trí các hình trên mẫu (mỗi thư mục một lần chạy)

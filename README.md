@@ -9,7 +9,9 @@ xếp dọc; máy tính bảng dựng đứng thì đúng như mẫu. Bấm mộ
 bung ra từ giữa màn hình, các hình trong trang lần lượt hiện ra từ trên xuống, rồi chữ chạy ra từng
 dòng (trái → phải, trên → dưới). Trang "Lời tri ân" có video (Google Drive) hiện trong khung ở dưới,
 sau khi chữ chạy xong; màn hình nhỏ thì trình phát được thu nhỏ cho vừa khung để không bị cắt hình.
-Ở trang chính, thuyền đung đưa và sóng dập dềnh. Mỗi mục có link riêng:
+Ở trang chính, thuyền đung đưa và sóng dập dềnh. Dòng "Chạm vào từng ô để cùng khám phá!" (cùng cỡ
+chữ với "Ấn phẩm của L2T NEWS") nhắc người xem bấm vào thẻ: máy tính thì nằm dưới tiêu đề, mũi tên chỉ
+sang các thẻ; máy tính bảng, điện thoại thì nằm ngay dưới các thẻ. Mỗi mục có link riêng:
 `/#loi-ngo`, `/#vung-ky-uc`, `/#cung-nhau-lon`, `/#loi-tri-an`.
 
 ## Chạy local
@@ -40,7 +42,7 @@ pnpm dev
 
 Trong popup: vuốt (mobile), phím ← → hoặc nút mũi tên (desktop) để sang mục khác; chạm đúp / pinch để phóng to;
 đóng bằng nút ✕, bấm ra vùng tối, phím Esc hoặc nút Back. Máy bật "giảm chuyển động" thì không có bướm,
-biển đứng yên, các hình, chữ và video hiện ngay.
+biển và dòng hướng dẫn đứng yên, các hình, chữ và video hiện ngay.
 
 ## Deploy (GitHub Actions → Vercel)
 

@@ -14,6 +14,9 @@ design/update-v1/homepage-design.webp) and writes:
   src/assets/cover/sky.webp, cloud-1..3.webp
   src/assets/cover/bird-1..3.webp     the three largest birds of the exported flock
   src/assets/effects/butterfly-1..2.webp
+  src/assets/cover/hint-1..2.webp     "Chạm vào từng ô" / "để cùng khám phá!": the hint
+                                      (click-in-here.png) cut at the space between them,
+                                      so the page can set it on one line or two
   src/coverScene.json                 every part's box in design pixels (3179×4494):
                                       the page lays them out from these numbers
 """
@@ -54,6 +57,8 @@ CARDS = [  # slug, folder, the card's quarter of the design (the airmail paper i
     ('loi-tri-an', 'loi_tri_an', lambda x, y: x >= 1900 and y >= 2300),
 ]
 FLOCK = 'Bản sao của BÁO TƯỜNG 20.11.png'
+HINT = 'click-in-here.png'
+HINT_WORDS = 4  # words on the hint's first line when it takes two
 SCALE = dict(card=0.6, title=0.6, sea=0.6, sparkle=0.35, logo=1.0, cloud=0.35, sky=0.25)
 
 spec = importlib.util.spec_from_file_location('layers', os.path.join(os.path.dirname(__file__), 'build-section-layers.py'))
@@ -122,6 +127,23 @@ def composite(parts):
         a[r] = ca + a[r] * (1 - ca)
     out = np.dstack([rgb / np.maximum(a, 1e-6)[..., None], a * 255])
     return x0, y0, out
+
+
+def hint():
+    """Cut the hint at the space after its first HINT_WORDS words. Both halves keep
+    the line's full height, so they line up when set side by side; returns their
+    widths, height and the width of the space between them (px)."""
+    E = load(DESIGN, HINT)
+    ink = E[..., 3] > 20
+    ys, xs = np.nonzero(ink)
+    E, ink = E[ys.min():ys.max() + 1, xs.min():xs.max() + 1], ink[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    blank = np.r_[False, ~ink.any(0), False].astype(np.int8)
+    starts, ends = np.nonzero(np.diff(blank) == 1)[0], np.nonzero(np.diff(blank) == -1)[0]
+    gap_start, gap_end = starts[HINT_WORDS - 1], ends[HINT_WORDS - 1]  # the spaces between words
+    halves = [E[:, :gap_start], E[:, gap_end:]]
+    for k, half in enumerate(halves):
+        save(half, f'hint-{k + 1}', 1)
+    return dict(w=[h.shape[1] for h in halves], h=E.shape[0], gap=int(gap_end - gap_start))
 
 
 def main():
@@ -209,6 +231,8 @@ def main():
         ys, xs = np.nonzero(E[..., 3] > 2)
         E = E[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
         save(E, f'butterfly-{k + 1}', min(1, 240 / max(E.shape[:2])), folder='src/assets/effects')
+
+    scene['hint'] = hint()
 
     with open('src/coverScene.json', 'w') as fh:
         json.dump(scene, fh, indent=1)

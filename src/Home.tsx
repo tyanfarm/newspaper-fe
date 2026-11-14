@@ -38,6 +38,12 @@ const WAVE_OVERLAP = 300 // design px each copy tucks under the previous one
 
 const LOGO_ALT: Record<string, string> = { 'logo-kdc': 'KDC Education', 'logo-kdi': 'KDI Education' }
 
+// The hint comes in two halves ("Chạm vào từng ô" / "để cùng khám phá!") so it
+// can run on one line beside the cards or on two under them (home.css). The
+// arrow is drawn like the hint's lettering: black with a white edge.
+const hint = scene.hint
+const ARROW = 'M3 20C11 27 23 26 34 12M25.4 14.6L34 12L33.5 21'
+
 export default function Home({ onOpen }: HomeProps) {
   const backCloud = scene.clouds.find((c) => c.name === 'cloud-3')!
   return (
@@ -88,6 +94,17 @@ export default function Home({ onOpen }: HomeProps) {
           <img key={l.name} className={`home__logo home__logo--${l.name}`} src={src(l.name)} alt={LOGO_ALT[l.name]} style={vars({ '--w': l.w })} />
         ))}
       </div>
+
+      <p className="home__hint" style={vars({ '--gap': hint.gap / hint.h })}>
+        <img className="home__hint-line home__hint-line--1" src={src('hint-1')} alt="Chạm vào từng ô" width={hint.w[0]} height={hint.h} />
+        <img className="home__hint-line home__hint-line--2" src={src('hint-2')} alt="để cùng khám phá!" width={hint.w[1]} height={hint.h} />
+        <svg className="home__hint-arrow" viewBox="-1 7 40 22" aria-hidden="true" focusable="false">
+          <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+            <path d={ARROW} stroke="#fff" strokeWidth="7" />
+            <path d={ARROW} stroke="#000" strokeWidth="3" />
+          </g>
+        </svg>
+      </p>
 
       <nav className="home__board" aria-label="Các mục" style={vars({ '--x': board.x, '--y': board.y, '--w': board.w, '--h': board.h })}>
         {sections.map((section, i) => {

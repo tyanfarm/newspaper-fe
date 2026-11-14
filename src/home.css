@@ -205,6 +205,48 @@
   outline-offset: 4px;
 }
 
+/* ---------- hint: "Chạm vào từng ô để cùng khám phá!" ---------- */
+
+/* Its lettering is the size of "Ấn phẩm của L2T NEWS" on every screen: a line
+   of the hint is 102 design px and scales with the title (--kh).
+   Wide screens: one line under the title, lined up on the right with its
+   subtitle, the arrow pointing right at the cards. It drifts in a moment
+   after the page, then the arrow keeps nudging. */
+.home__hint {
+  --line: calc(var(--kh) * 102);
+  --nudge: calc(var(--line) * 0.25) 0;
+  position: absolute;
+  z-index: 3;
+  right: calc(100% - var(--cx) - var(--u) * 51.8);
+  top: calc(var(--cy) + var(--u) * 14.3);
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  column-gap: calc(var(--line) * var(--gap)); /* a space between words */
+  margin: 0;
+  pointer-events: none;
+  user-select: none;
+  animation: hint-in 0.8s ease-out 0.6s both;
+}
+.home__hint-line {
+  width: auto;
+  max-width: none;
+  height: var(--line);
+}
+.home__hint-arrow {
+  width: auto;
+  height: calc(var(--line) * 1.3);
+  margin-left: calc(var(--line) * 0.15);
+  overflow: visible;
+  animation: hint-nudge 1.4s ease-in-out infinite;
+}
+@keyframes hint-in {
+  from { opacity: 0; translate: 0 calc(var(--line) * 0.6); }
+}
+@keyframes hint-nudge {
+  50% { translate: var(--nudge); }
+}
+
 /* ---------- tablets held upright: the design as drawn ---------- */
 
 @media (max-aspect-ratio: 1/1) {
@@ -235,6 +277,25 @@
     top: calc(var(--cy) + var(--y) * var(--k));
     width: calc(var(--w) * var(--k));
     height: auto;
+  }
+
+  /* the hint on two lines under "Lời tri ân", right-aligned, its arrow
+     pointing up at the cards (they end at 3670 design px) */
+  .home__hint {
+    --nudge: 0 calc(var(--line) * -0.25);
+    right: calc(var(--cx) + var(--u) * 5);
+    top: calc(var(--cy) + 3730 * var(--k));
+    grid-auto-flow: row;
+    grid-template-columns: auto auto;
+    justify-items: end;
+  }
+  .home__hint-line--1 { grid-area: 1 / 2; }
+  .home__hint-line--2 { grid-area: 2 / 1 / 3 / 3; }
+  .home__hint-arrow {
+    grid-area: 1 / 1;
+    height: var(--line);
+    margin: 0 calc(var(--line) * 0.1) 0 0;
+    rotate: -75deg;
   }
 
   .home__cloud--sky,
@@ -271,16 +332,30 @@
     top: calc(var(--u) * 31);
     width: calc(var(--w) * var(--kb));
   }
+  /* the hint on one line under the cards (they end at 130u), clear of the
+     lighthouse on the left; the arrow comes first */
+  .home__hint {
+    right: calc(var(--cx) + var(--u) * 3);
+    top: calc(var(--u) * 133);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+  }
+  .home__hint-line--1,
+  .home__hint-line--2,
+  .home__hint-arrow { grid-area: auto; }
+  .home__hint-arrow { order: -1; }
 
   .home__bird--1 { top: calc(var(--u) * 33); }
   .home__bird--2 { top: calc(var(--u) * 78); }
   .home__bird--3 { left: calc(var(--cx) + var(--u) * 40); top: calc(var(--u) * 80); }
-  .home__bird--4 { top: calc(var(--u) * 132); }
+  .home__bird--4 { top: calc(var(--u) * 141); } /* below the hint */
 }
 
 @media (prefers-reduced-motion: reduce) {
   .home__sea-el,
-  .home__waves-more { animation: none; }
+  .home__waves-more,
+  .home__hint,
+  .home__hint-arrow { animation: none; }
   .home__card img { transition: none; }
   .home__card:hover img,
   .home__card:focus-visible img { transform: none; }
