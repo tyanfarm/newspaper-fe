@@ -1,6 +1,9 @@
 # baotuong-fe
 
-Trình chiếu slide Canva trên web — Vite + React + TypeScript + Tailwind + Swiper.
+Báo tường "Thắp sáng – L2T NEWS" trên web — Vite + React + TypeScript + Tailwind + Swiper.
+
+Trang chính là bìa báo trải kín màn hình; bấm một trong 4 thẻ để mở trang đó trong popup
+(nền tối, mờ). Mỗi mục có link riêng: `/#loi-ngo`, `/#vung-ky-uc`, `/#cung-nhau-lon`, `/#loi-tri-an`.
 
 ## Chạy local
 
@@ -9,15 +12,23 @@ pnpm install
 pnpm dev
 ```
 
-## Thêm slide
+## Nội dung nằm ở đâu
 
-1. Canva → **Share → Download** → chọn **PNG** (tất cả các trang) → tải file zip.
-2. Giải nén, bỏ ảnh vào `src/slides/`.
-3. Slide được sắp theo tên file (sort số): `1.png`, `2.png`, …, `10.png`.
+| Thư mục | Nội dung |
+|---|---|
+| `src/assets/sections/` | 4 trang mở trong popup: `loi-ngo.webp`, `vung-ky-uc.webp`, `cung-nhau-lon.webp`, `loi-tri-an.webp` |
+| `src/assets/cover/` | Các phần của bìa (tiêu đề, hải đăng, thuyền, 4 thẻ, sóng, nền giấy, logo…) |
+| `design/canva-export/` | File xuất gốc từ Canva (bìa = `1.webp`), không đưa lên web |
+| `src/sections.ts` | Tên + thứ tự 4 mục |
 
-Hỗ trợ `.png`, `.jpg`, `.jpeg`, `.webp`, `.avif`. Nên đổi sang WebP để web nhẹ hơn.
+**Sửa một trang:** xuất lại trang đó từ Canva, đổi sang WebP, ghi đè đúng tên file trong `src/assets/sections/`.
 
-Điều khiển: vuốt (mobile), phím ← → , nút mũi tên (desktop), chạm đúp / pinch để phóng to.
+**Thay phần trên bìa bằng bản gốc từ Canva** (sạch hơn bản tách tự động): xem
+[scripts/README.md](scripts/README.md) — ghi đè đúng tên file trong `src/assets/cover/`, không cần sửa code.
+Script `scripts/extract-cover.py` tách lại toàn bộ từ `design/canva-export/1.webp` nếu bìa thay đổi.
+
+Trong popup: vuốt (mobile), phím ← → hoặc nút mũi tên (desktop) để sang mục khác; chạm đúp / pinch để phóng to;
+đóng bằng nút ✕, bấm ra vùng tối, phím Esc hoặc nút Back.
 
 ## Deploy (GitHub Actions → Vercel)
 
