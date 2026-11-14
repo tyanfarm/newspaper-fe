@@ -1,4 +1,6 @@
-// Temporary stub while the home page and popup are built (Tasks 3–4).
+import Home from './Home'
+
+// Temporary: popup wiring arrives in Task 4.
 export default function App() {
-  return null
+  return <Home onOpen={() => {}} />
 }

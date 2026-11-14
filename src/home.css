@@ -1,0 +1,192 @@
+/*
+ * Cover home page. Every size is a multiple of --u, one unit of a virtual
+ * canvas that always fits the viewport:
+ *   landscape: 100u × 56.25u (16:9)  → --u = min(1vw, 1.7778vh)
+ *   portrait:  100u × 216.7u (9:19.5) → --u = min(1vw, 0.4615vh)
+ * The centre column (title + cards) sits on that canvas; decorations are
+ * pinned to the viewport edges so wider screens just show more sky and sea.
+ */
+.home {
+  --u: min(1vw, 1.7778vh);
+  --sea-h: calc(var(--u) * 8.5);
+  --navy: #1f3f8f;
+  --red: #c0392b;
+
+  position: relative;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    linear-gradient(to bottom, rgb(194 214 223 / 0.9), rgb(194 214 223 / 0) 45%),
+    linear-gradient(rgb(236 224 204 / 0.45), rgb(236 224 204 / 0.45)),
+    url('./assets/cover/paper-tile.webp') center top / calc(var(--u) * 34) auto repeat,
+    #e9dcc6;
+}
+
+/* ---------- centre column ---------- */
+
+.home__center {
+  position: absolute;
+  inset: 0 0 var(--sea-h) 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: calc(var(--u) * 0.5);
+  pointer-events: none; /* let clicks through the empty parts; cards re-enable */
+}
+
+.home__heading {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.home__title {
+  width: calc(var(--u) * 52);
+  height: auto;
+}
+
+.home__subtitle {
+  margin: calc(var(--u) * 0.6) calc(var(--u) * 0.8) 0 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: calc(var(--u) * 1.55);
+  font-weight: 400;
+  line-height: 1.2;
+  color: #1d1d1f;
+  white-space: nowrap;
+}
+.home__subtitle .n { color: var(--navy); }
+.home__subtitle .r { color: var(--red); }
+
+.home__cards {
+  margin-top: calc(var(--u) * 2);
+  display: grid;
+  grid-template-columns: repeat(2, calc(var(--u) * 11.5));
+  gap: calc(var(--u) * 1.4) calc(var(--u) * 2);
+  align-items: center;
+  justify-items: center;
+  pointer-events: auto;
+}
+
+.home__card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: calc(var(--u) * 0.3);
+}
+.home__card img {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 calc(var(--u) * 0.35) calc(var(--u) * 0.6) rgb(0 0 0 / 0.28));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.home__card:hover img,
+.home__card:focus-visible img {
+  transform: translateY(calc(var(--u) * -0.3)) scale(1.02);
+  filter: drop-shadow(0 calc(var(--u) * 0.7) calc(var(--u) * 1) rgb(0 0 0 / 0.35));
+}
+.home__card:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 4px;
+}
+
+/* ---------- decorations ---------- */
+
+.home__deco {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.home__lighthouse {
+  left: 0;
+  bottom: calc(var(--u) * 2);
+  height: calc(var(--u) * 41.6);
+  width: auto;
+  z-index: 0;
+}
+
+.home__sea {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--sea-h);
+  z-index: 1;
+  background: url('./assets/cover/sea-tile.webp') left bottom / auto 100% repeat-x;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%);
+  mask-image: linear-gradient(to bottom, transparent, #000 40%);
+}
+
+.home__ship {
+  left: calc(var(--u) * 15);
+  bottom: calc(var(--u) * 0.3);
+  width: calc(var(--u) * 19);
+  z-index: 1;
+}
+
+.home__logos {
+  position: absolute;
+  right: calc(var(--u) * 1.2);
+  bottom: calc(var(--u) * 1.4);
+  width: calc(var(--u) * 13);
+  z-index: 1;
+  padding: calc(var(--u) * 0.35);
+  border-radius: calc(var(--u) * 0.6);
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+}
+.home__logos img {
+  width: 100%;
+  height: auto;
+  border-radius: calc(var(--u) * 0.3);
+}
+
+.home__bird { z-index: 0; }
+.home__bird--1 { right: calc(var(--u) * 13); top: calc(var(--u) * 14); width: calc(var(--u) * 7); }
+.home__bird--2 { right: calc(var(--u) * 24); top: calc(var(--u) * 25); width: calc(var(--u) * 4.5); transform: scaleX(-1); }
+.home__bird--3 { left: calc(var(--u) * 19); top: calc(var(--u) * 19); width: calc(var(--u) * 5); transform: scaleX(-1); }
+
+/* ---------- portrait (phones, tablets held upright) ---------- */
+
+@media (max-aspect-ratio: 1/1) {
+  .home {
+    --u: min(1vw, 0.4615vh);
+    --sea-h: calc(var(--u) * 19.5);
+    background-size: auto, auto, calc(var(--u) * 60) auto, auto;
+  }
+
+  .home__center {
+    inset: 0;
+    justify-content: flex-start;
+    padding-top: calc(var(--u) * 6.5);
+  }
+
+  .home__title { width: calc(var(--u) * 92); }
+  .home__subtitle { font-size: calc(var(--u) * 3.8); margin-right: calc(var(--u) * 1.5); }
+
+  .home__cards {
+    margin-top: calc(var(--u) * 5);
+    grid-template-columns: repeat(2, calc(var(--u) * 41));
+    gap: calc(var(--u) * 4.5) calc(var(--u) * 5);
+  }
+
+  .home__lighthouse { bottom: calc(var(--u) * 6.5); height: calc(var(--u) * 54); }
+  .home__ship { left: auto; right: calc(var(--u) * 33); bottom: calc(var(--u) * 1); width: calc(var(--u) * 34); }
+  .home__logos { right: calc(var(--u) * 3); bottom: calc(var(--u) * 4.3); width: calc(var(--u) * 28); }
+
+  .home__bird--1 { right: calc(var(--u) * 8); top: auto; bottom: calc(var(--u) * 47); width: calc(var(--u) * 15); }
+  .home__bird--2,
+  .home__bird--3 { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home__card img { transition: none; }
+  .home__card:hover img,
+  .home__card:focus-visible img { transform: none; }
+}

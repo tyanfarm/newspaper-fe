@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 from rembg import new_session, remove
 
 # Boxes are measured on a 795px-wide preview of the cover and scaled to the
@@ -87,13 +87,29 @@ def card_cutout(region: Image.Image, session) -> Image.Image:
 
 
 def title_cutout(region: Image.Image, session) -> Image.Image:
-    out = remove(region, session=session)
-    a = np.asarray(out.getchannel("A")).astype(float)
-    # Faded copies (the "Ấn phẩm…" line, the drop shadow) come back half
-    # transparent; keep only the solid lettering.
-    a = np.clip((a - 150) * 255 / 105, 0, 255)
-    h, w = a.shape
+    rgb = np.asarray(region).astype(float)
+    rembg_a = np.asarray(remove(region, session=session, only_mask=True)).astype(float)
+    h, w = rembg_a.shape
+    # "Số 2011" (bottom right) has its own gradient and music notes: keep
+    # rembg's matte there, minus the half-transparent ghost of the "Ấn phẩm…"
+    # line that sat beneath it.
+    a = np.clip((rembg_a - 150) * 255 / 105, 0, 255)
+    # "Thắp sáng" is one flat navy on light sky. rembg leaves holes in the
+    # accents, so key that lettering by colour instead, limited to a dilated
+    # rembg mask (keeps stray dark text elsewhere in the box out), and paint
+    # it the flat navy so blended edge pixels don't look washed out.
+    words = np.zeros((h, w), dtype=bool)
+    words[:, : int(w * 0.76)] = True
+    words[: int(h * 0.5), :] = True
+    navy = np.median(rgb[words & (rembg_a > 250)], axis=0)
+    near = Image.fromarray((rembg_a > 40).astype(np.uint8) * 255).filter(ImageFilter.MaxFilter(41))
+    dist = np.linalg.norm(rgb - navy, axis=2)
+    keyed = np.clip((115 - dist) / 65, 0, 1) * 255 * (np.asarray(near) > 0)
+    a[words] = keyed[words]
     a[int(h * 0.83) :, int(w * 0.6) :] = 0  # strip where the subtitle sat
+    out_rgb = rgb.copy()
+    out_rgb[words] = navy
+    out = Image.fromarray(out_rgb.astype(np.uint8)).convert("RGBA")
     out.putalpha(Image.fromarray(a.astype(np.uint8)))
     return out
 
