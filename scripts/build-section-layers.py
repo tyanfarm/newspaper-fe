@@ -7,14 +7,18 @@ Inputs (all under design/canva-export/):
   objects-png/<folder>/      each slide's elements, exported as PNGs
   placements/<folder>.json   where each element sits (scripts/locate-elements.py)
 
+  ../update-v1/<PAPER_FILE>  the folded airmail letter (as on the homepage cards)
+                             that replaces the slides' own paper
+
 Outputs (under src/assets/sections/):
-  <slug>/base.webp           what lies under the elements: the airmail-letter
-                             paper with no text or pictures, rebuilt from the four
-                             slides (they share one template). Shows behind an
-                             element until it has appeared.
-  <slug>/top.webp            the slide itself without its text, transparent wherever
-                             an element shows through; keeps borders and anything
-                             drawn over an element, so the original stacking holds
+  <slug>/base.webp           the page's paper: the folded airmail letter, cropped
+                             to the sheet. Shows behind everything else.
+  <slug>/top.webp            the slide itself without its text and without its
+                             paper: transparent wherever the slide showed bare
+                             paper (or its old stripes) and wherever an element
+                             shows through; keeps shadows, anything drawn on the
+                             paper and anything drawn over an element, so the
+                             original stacking holds
   <slug>/text.webp           the slide's text alone (titles and paragraphs), shown
                              line by line through the boxes listed in layers.json
   <slug>/el-NN.webp          each element exactly as placed (scale, rotation, flip)
@@ -26,11 +30,13 @@ Outputs (under src/assets/sections/):
                              there, so the player sits under the elements drawn
                              over the frame (flowers, the wax seal)
 
-Stacked base → elements → top → text, each page matches its slide: the script
-re-composites the encoded files and prints the error to prove it.
+Stacked on the slides' own paper, elements → top → text match the slide: the
+script re-composites the encoded files and prints the error to prove it (and,
+with PREVIEW_DIR set, saves the page on its new paper for checking by eye).
 
     python scripts/build-section-layers.py [slug …]   # only these pages
 """
+import io
 import itertools
 import json
 import os
@@ -57,6 +63,16 @@ QUALITY = 84
 # Video frames (slide px, x0 y0 x1 y1): the page plays a video there.
 VIDEO = {'loi-tri-an': (427, 2771, 2751, 4321)}
 VIDEO_MARGIN = 160  # slide px around the frame that the base turns to plain paper
+# The pages' new paper: the folded airmail letter of the homepage cards.
+PAPER_FILE = 'design/update-v1/cung_nhau_lon/BÁO TƯỜNG 20.11 (10).png'
+# Its striped band is wider than the slides' (≈160 vs ≈100 slide px), and the
+# text runs close to the edge: trim this share of the sheet off every side, so
+# the stripes end at the page edge about as wide as the old ones.
+PAPER_TRIM = 0.019
+# Top-layer pixels this close to the old paper (max channel difference) are bare
+# paper and turn clear; from BARE_HI on they are content. Low, so a photo
+# fading into the paper is not cut into blotches where it is faintest.
+BARE_LO, BARE_HI = 6, 14
 
 
 def nfc(s):
@@ -187,6 +203,113 @@ def save(img, path, **kw):
     img.save(path, 'WEBP', quality=QUALITY, method=6, **kw)
 
 
+def webp_roundtrip(arr, size):
+    """`arr` as the browser shows it: encoded like the saved files, decoded, scaled to `size`."""
+    buf = io.BytesIO()
+    save(Image.fromarray(arr), buf)
+    return np.asarray(Image.open(buf).convert('RGB').resize(size, Image.BILINEAR)).astype(np.float32)
+
+
+def new_paper():
+    """The folded airmail letter, cropped to the sheet (its drop shadow and
+    the clear margin round it left off), as an RGB image at its own size."""
+    im = np.asarray(Image.open(PAPER_FILE).convert('RGBA')).astype(np.float32)
+    solid = im[..., 3] > 250
+    rows = np.nonzero(solid.mean(axis=1) > 0.5)[0]
+    cols = np.nonzero(solid.mean(axis=0) > 0.5)[0]
+    sheet = im[rows.min() + 1:rows.max(), cols.min() + 1:cols.max()]  # 1 px in: the edge is soft
+    ty, tx = (round(n * PAPER_TRIM) for n in sheet.shape[:2])
+    sheet = sheet[ty:-ty, tx:-tx]
+    a = sheet[..., 3:] / 255
+    fill = np.median(sheet[..., :3][a[..., 0] > 0.99], axis=0)  # any clear corner pixel: plain paper
+    return (sheet[..., :3] * a + fill * (1 - a)).round().clip(0, 255).astype(np.uint8)
+
+
+def ramp(v, lo, hi):
+    return np.clip((v - lo) / (hi - lo), 0, 1)
+
+
+OLD_BAND = 140  # slide px from each edge that the old stripes can reach (they vary by slide)
+
+
+def edge_band(h, w):
+    yy, xx = np.mgrid[0:h, 0:w]
+    return np.minimum(np.minimum(xx, w - 1 - xx), np.minimum(yy, h - 1 - yy)) < round(OLD_BAND * OUT_SCALE)
+
+
+def old_stripes(O, rgb, paper):
+    """The slide's own border stripes, within OLD_BAND of the edge: pixels of
+    the stripe colours, and their soft edges (next to one, on the way from it
+    to the paper colour). The slides' borders differ slightly, so the rebuilt
+    paper cannot be relied on to match them."""
+    h, w = O.shape[:2]
+    band = edge_band(h, w)
+    plain = np.median(paper.reshape(-1, 3), axis=0)
+    edge = O[band]
+    edge = edge[np.abs(edge - plain).max(axis=1) > 60]
+    _, _, colours = cv2.kmeans(np.float32(edge), 2, None, (cv2.TERM_CRITERIA_EPS, 20, 1.0), 3, cv2.KMEANS_PP_CENTERS)
+    to_colour = np.min([np.abs(rgb - c).max(axis=2) for c in colours], axis=0)
+    to_line = np.full((h, w), np.inf, np.float32)
+    for c in colours:
+        seg = c - plain
+        t = np.clip(((rgb - plain) @ seg) / (seg @ seg), 0, 1)
+        to_line = np.minimum(to_line, np.abs(rgb - (plain + t[..., None] * seg)).max(axis=2))
+    core = band & (to_colour < 35)
+    soft = band & cv2.dilate(core.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & (to_line < 25)
+    return core | soft
+
+
+def paper_distance(rgb, paper):
+    """How far each pixel is outside the range of paper colours just round it
+    (the rebuilt paper can sit a pixel off the slide's, which a straight
+    comparison would keep as thin ghost lines along every mark on it)."""
+    k = np.ones((5, 5), np.uint8)
+    return np.maximum(np.maximum(cv2.erode(paper, k) - rgb, rgb - cv2.dilate(paper, k)), 0).max(axis=2)
+
+
+def lift_paper(rgb, alpha, paper, bare):
+    """Make the old paper in a layer see-through, so a new paper can go under it.
+
+    Pixels that are the old paper (or marked `bare`: its old stripes) turn
+    clear; content keeps the contrast it had against the old paper (a shadow
+    stays a shadow, a photo fading into the paper fades into the new one).
+    Over the old paper the result reproduces the layer as it was, except that
+    the faintest marks fade out instead of stopping at a hard edge.
+    """
+    d = rgb - paper
+    # The least opacity at which some colour over the paper gives rgb (per
+    # channel: towards black or towards white, whichever way the pixel leans).
+    room = np.where(d < 0, paper, 255 - paper)
+    need = (np.abs(d) / np.maximum(room, 1)).max(axis=2)
+    a = need * ramp(paper_distance(rgb, paper), BARE_LO, BARE_HI) * ~bare
+    colour = np.where(a[..., None] > 0, paper + d / np.maximum(a, 1e-6)[..., None], rgb)
+    return colour.clip(0, 255), alpha * a
+
+
+def mend_stripes(rgb, alpha, paper, stripes):
+    """Old stripes drawn over a picture of the slide's own (the faded photo
+    behind "Vùng ký ức") would leave stripe-shaped holes in it once lifted:
+    fill those from the picture round them. Returns the mended layer and the
+    stripes left to lift (those over bare paper)."""
+    solid = alpha > 0.5
+    content = solid & ~stripes & (paper_distance(rgb, paper) > BARE_HI)
+    near = cv2.GaussianBlur(content.astype(np.float32), (0, 0), 12)
+    known = cv2.GaussianBlur((solid & ~stripes).astype(np.float32), (0, 0), 12)
+    hole = stripes & (near > 0.5 * np.maximum(known, 1e-6))
+    filled = cv2.inpaint(rgb.round().clip(0, 255).astype(np.uint8), hole.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
+    return np.where(hole[..., None], filled.astype(np.float32), rgb), stripes & ~hole
+
+
+def paint_stripes(rgb, new_paper_rgb):
+    """The new paper's stripes painted over whatever the layer holds near the
+    edge, as the old ones were over the slide's pictures (elements, under
+    clear parts of the layer, still cover them)."""
+    h, w = rgb.shape[:2]
+    plain = np.median(new_paper_rgb.reshape(-1, 3), axis=0)
+    s = ramp((plain - new_paper_rgb).max(axis=2), 40, 90) * edge_band(h, w)  # darker than its paper
+    return rgb * (1 - s[..., None]) + new_paper_rgb * s[..., None]
+
+
 def section_base(O, cover, paper):
     """What lies under this slide's elements: plain paper, except next to large
     non-paper areas (the video frame, pictures that were not exported), where
@@ -216,8 +339,10 @@ TEXT_BLOCKS = {
     'loi-ngo': [('title', (1011, 337, 2546, 899)), ('body', (131, 1198, 3014, 2958)),
                 ('body', (131, 2977, 1666, 4119)), ('body', (1048, 4156, 1573, 4437))],
     'vung-ky-uc': [('title', (786, 262, 2846, 618)), ('body', (431, 655, 3060, 3557))],
+    # Two columns, top and bottom: the story runs down the left column (above
+    # and below the photos), then down the right one.
     'cung-nhau-lon': [('title', (318, 150, 2415, 580)), ('body', (200, 600, 1600, 1900)),
-                      ('body', (1690, 640, 3050, 1950)), ('body', (200, 2860, 1600, 3960)),
+                      ('body', (200, 2860, 1600, 3960)), ('body', (1690, 745, 3050, 1950)),
                       ('body', (1680, 2790, 3050, 4010))],
     'loi-tri-an': [('title', (1254, 431, 2902, 768)), ('body', (243, 786, 2958, 2584))],
 }
@@ -337,7 +462,8 @@ def build_section(slug, O, folder, spec, paper):
         r = region(L)
         cover[r] = 1 - (1 - cover[r]) * (1 - L[2][..., 3] / 255)
 
-    base_file = os.path.join(out_dir, 'base.webp')
+    # The slide's own paper under its elements: used to take the slide apart
+    # (which pixels the elements already account for), never shown.
     base = section_base(O, cover, paper)
     if slug in VIDEO:
         # The video appears late, so until then its frame (and a margin round
@@ -350,9 +476,11 @@ def build_section(slug, O, folder, spec, paper):
         # One flat paper colour: the rebuilt paper keeps faint traces of the other slides here.
         plain = np.median(paper.reshape(-1, 3), axis=0)
         base = (base * (1 - m) + plain * m).round().clip(0, 255).astype(np.uint8)
-    save(Image.fromarray(base), base_file)
-    # Composite against the base as the browser will see it (decoded, upscaled).
-    B = np.asarray(Image.open(base_file).convert('RGB').resize((w, h), Image.BILINEAR)).astype(np.float32)
+    B = webp_roundtrip(base, (w, h))  # as the browser would show it (decoded, upscaled)
+
+    # What the page shows instead: the folded airmail letter.
+    base_file = os.path.join(out_dir, 'base.webp')
+    save(Image.fromarray(new_paper()), base_file)
 
     order = paint_order(O, layers, B)
     S = B.copy()
@@ -390,6 +518,16 @@ def build_section(slug, O, folder, spec, paper):
         save(Image.fromarray(O[frame].round().clip(0, 255).astype(np.uint8)), os.path.join(out_dir, 'video-poster.webp'))
         video = dict(x=round(x0 / w, 5), y=round(y0 / h, 5), w=round((x1 - x0) / w, 5), h=round((y1 - y0) / h, 5))
 
+    # The slide's paper (and its stripes) turns clear, so the new paper shows;
+    # the new stripes go over the slide's pictures where the old ones did.
+    # Compare against the rebuilt paper smoothed: it keeps faint traces of the
+    # other slides' text, which would otherwise come through as ghost letters.
+    ref = cv2.medianBlur(paper.round().clip(0, 255).astype(np.uint8), 21).astype(np.float32)
+    top_rgb, bare = mend_stripes(top_rgb, top_alpha, ref, old_stripes(O, top_rgb, ref))
+    top_rgb, top_alpha = lift_paper(top_rgb, top_alpha, ref, bare)
+    new_base = np.asarray(Image.open(base_file).convert('RGB').resize((w, h), Image.LANCZOS)).astype(np.float32)
+    top_rgb = paint_stripes(top_rgb, new_base)
+
     top = np.dstack([top_rgb, top_alpha * 255]).round().clip(0, 255).astype(np.uint8)
     save(Image.fromarray(top, 'RGBA'), os.path.join(out_dir, 'top.webp'), exact=False)
     save(Image.fromarray(text.round().clip(0, 255).astype(np.uint8), 'RGBA'), os.path.join(out_dir, 'text.webp'), exact=False)
@@ -417,30 +555,35 @@ def build_section(slug, O, folder, spec, paper):
     with open(os.path.join(out_dir, 'layers.json'), 'w') as fh:
         json.dump(meta, fh, indent=1)
 
-    # Proof: re-composite the encoded files and compare with the slide.
-    R = B.copy()
-    if video:  # the player's still stands in for the video
-        x0, y0, x1, y1 = (round(v * OUT_SCALE) for v in VIDEO[slug])
-        R[y0:y1, x0:x1] = np.asarray(Image.open(os.path.join(out_dir, 'video-poster.webp')).convert('RGB')).astype(np.float32)
-    for e in elements:
-        im = np.asarray(Image.open(os.path.join(out_dir, e['src'])).convert('RGBA')).astype(np.float32)
-        x0, y0 = e['px']
-        R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]] = over(im[..., :3], im[..., 3] / 255, R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]])
-    T = np.asarray(Image.open(os.path.join(out_dir, 'top.webp')).convert('RGBA')).astype(np.float32)
-    R = over(T[..., :3], T[..., 3] / 255, R)
-    before_text = R.copy()
-    X = np.asarray(Image.open(os.path.join(out_dir, 'text.webp')).convert('RGBA')).astype(np.float32)
-    shown = np.zeros(X.shape[:2], bool)  # the page shows text only inside line boxes
-    for a, b, c, d in lines:
-        shown[b:d, a:c] = True
-    R = np.where(shown[..., None], over(X[..., :3], X[..., 3] / 255, R), R)
+    # Proof: re-composite the encoded files on the slide's own paper and
+    # compare with the slide.
+    def stack(under):
+        R = under.copy()
+        if video:  # the player's still stands in for the video
+            x0, y0, x1, y1 = (round(v * OUT_SCALE) for v in VIDEO[slug])
+            R[y0:y1, x0:x1] = np.asarray(Image.open(os.path.join(out_dir, 'video-poster.webp')).convert('RGB')).astype(np.float32)
+        for e in elements:
+            im = np.asarray(Image.open(os.path.join(out_dir, e['src'])).convert('RGBA')).astype(np.float32)
+            x0, y0 = e['px']
+            R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]] = over(im[..., :3], im[..., 3] / 255, R[y0:y0 + im.shape[0], x0:x0 + im.shape[1]])
+        T = np.asarray(Image.open(os.path.join(out_dir, 'top.webp')).convert('RGBA')).astype(np.float32)
+        R = over(T[..., :3], T[..., 3] / 255, R)
+        before_text = R.copy()
+        X = np.asarray(Image.open(os.path.join(out_dir, 'text.webp')).convert('RGBA')).astype(np.float32)
+        shown = np.zeros(X.shape[:2], bool)  # the page shows text only inside line boxes
+        for a, b, c, d in lines:
+            shown[b:d, a:c] = True
+        return before_text, np.where(shown[..., None], over(X[..., :3], X[..., 3] / 255, R), R)
+
+    _, R = stack(paper)
     err = np.abs(R - O)
     kb = sum(os.path.getsize(os.path.join(out_dir, f)) for f in os.listdir(out_dir)) // 1024
     print(f'{slug}: {len(elements)} elements, {len(lines)} lines, mean error {err.mean():.2f}/255, '
           f'pixels off by >24: {(err.max(axis=2) > 24).mean() * 100:.2f}%, {kb} KB')
-    if os.environ.get('PREVIEW_DIR'):  # before/after the text is written, for checking by eye
-        side = np.hstack([before_text, R]).round().clip(0, 255).astype(np.uint8)
+    if os.environ.get('PREVIEW_DIR'):  # on the new paper, before/after the text is written, for checking by eye
+        side = np.hstack(stack(new_base)).round().clip(0, 255).astype(np.uint8)
         Image.fromarray(side).resize((1400, 990)).save(os.path.join(os.environ['PREVIEW_DIR'], f'text-{slug}.png'))
+        Image.fromarray(side[:, w:]).save(os.path.join(os.environ['PREVIEW_DIR'], f'page-{slug}.png'))
     for e in elements:
         print(f"  {e['src']}  visible {e['seen'] * 100:3.0f}%  {e['file']}")
 

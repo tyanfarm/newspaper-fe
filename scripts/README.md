@@ -24,10 +24,15 @@ chồng như slide gốc**.
 - `locate-elements.py` tìm mỗi PNG trên slide (SIFT; hình phẳng/nhỏ như cánh hoa thì khớp mẫu), in ra
   độ khớp của từng hình. Hình không tìm được báo `MISSING` — hình đó vẫn hiện trong trang, chỉ là không có hiệu ứng.
   Hình khó dò có thể đặt tay trong `FALLBACK` (`method='fixed'`).
-- `build-section-layers.py` in ra sai số khi ghép lại các lớp so với slide (hiện ~1–2/255) — ghép xong trông
-  y hệt slide. Chữ được tách riêng (`text.webp`) cùng toạ độ từng dòng để chạy ra từng dòng; vùng chữ của
-  mỗi trang khai báo trong `TEXT_BLOCKS`. Khung video (`VIDEO`, trang "Lời tri ân") được để trống trong các
-  lớp: video nằm dưới hoa lá vẽ đè lên khung, và chỉ hiện sau khi chữ chạy xong.
+- `build-section-layers.py` in ra sai số khi ghép lại các lớp so với slide (hiện ~1,5–2,5/255) — ghép trên
+  giấy cũ thì trông y hệt slide. Giấy của slide được thay bằng tờ thư airmail gấp nếp
+  `design/update-v1/cung_nhau_lon/BÁO TƯỜNG 20.11 (10).png` (`PAPER_FILE`, cắt bớt mép `PAPER_TRIM` để dải
+  sọc mảnh như cũ): chỗ nào trên slide là giấy trơn hay sọc cũ thì lớp trên trong suốt, bóng đổ và hình vẽ
+  giữ lại; chỗ sọc cũ vẽ đè lên ảnh (ảnh lớp học mờ của "Vùng ký ức") thì lấp lại và vẽ sọc mới đè lên. Đặt `PREVIEW_DIR=<thư mục>` để lưu ảnh từng trang trên giấy mới mà xem bằng mắt.
+  Chữ được tách riêng (`text.webp`) cùng toạ độ từng dòng để chạy ra từng dòng; vùng chữ của mỗi trang
+  khai báo trong `TEXT_BLOCKS`, theo thứ tự đọc (trang "Cùng nhau lớn": hết cột trái rồi mới sang cột phải).
+  Khung video (`VIDEO`, trang "Lời tri ân") được để trống trong các lớp: video nằm dưới hoa lá vẽ đè lên
+  khung, và chỉ hiện sau khi chữ chạy xong.
 
 ## Trang chính
 

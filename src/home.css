@@ -97,6 +97,34 @@
 }
 .home__waves-more img + img { margin-left: calc(-300 * var(--ks)); }
 
+/* The sea moves: the ship rocks on the swell, the waves roll gently.
+   Distances are design px (× --ks). Everything sits on the bottom edge, so
+   it only ever moves down from its place, never up off the edge. */
+.home__sea-el--ship {
+  transform-origin: 50% 90%;
+  animation: ship-rock 5s ease-in-out infinite;
+}
+@keyframes ship-rock {
+  /* Leaning over, it sits lower in the water; upright, it rides higher. */
+  0%, 100% { rotate: -2.2deg; translate: 0 calc(26 * var(--ks)); }
+  25% { rotate: 0deg; translate: 0 calc(6 * var(--ks)); }
+  50% { rotate: 2.2deg; translate: 0 calc(26 * var(--ks)); }
+  75% { rotate: 0deg; translate: 0 calc(6 * var(--ks)); }
+}
+/* The long wave and its copies move as one, so they stay joined. */
+.home__sea-el--waves,
+.home__waves-more { animation: wave-roll 6s ease-in-out infinite; }
+@keyframes wave-roll {
+  0%, 100% { translate: 0 0; }
+  50% { translate: calc(-36 * var(--ks)) calc(18 * var(--ks)); }
+}
+.home__sea-el--wave-curl { animation: wave-curl 4.6s ease-in-out infinite; }
+.home__sea-el--wave-curl-2 { animation: wave-curl 5.4s ease-in-out -2s infinite reverse; }
+@keyframes wave-curl {
+  0%, 100% { translate: 0 0; }
+  50% { translate: calc(22 * var(--ks)) calc(20 * var(--ks)); }
+}
+
 /* ---------- birds ---------- */
 
 .home__bird {
@@ -251,6 +279,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .home__sea-el,
+  .home__waves-more { animation: none; }
   .home__card img { transition: none; }
   .home__card:hover img,
   .home__card:focus-visible img { transform: none; }

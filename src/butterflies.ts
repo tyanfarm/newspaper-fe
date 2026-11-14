@@ -26,7 +26,10 @@ export type Flight = {
   flap: number
 }
 
-const OFFSETS = [0, 0.12, 0.28, 0.44, 0.6, 0.78, 1]
+// Dense keyframes: the motion between them is linear. Up to BURST, each
+// butterfly pops out to its spot on screen; after it, it drifts off.
+const BURST = 0.25
+const OFFSETS = [0, 0.04, 0.09, 0.16, BURST, 0.37, 0.5, 0.62, 0.74, 0.87, 1]
 
 /** Deterministic 0–1 random numbers (mulberry32), for repeatable flocks. */
 export function seededRandom(seed: number): () => number {
@@ -47,45 +50,56 @@ function exitDistance(p: Point, d: Point, viewport: Size, margin: number): numbe
   return Math.min(tx, ty)
 }
 
+/** How many butterflies burst out: more on a bigger screen, so they fill it. */
+export function burstSize(viewport: Size): number {
+  return Math.round(Math.min(56, Math.max(26, (viewport.width * viewport.height) / 26000)))
+}
+
 /**
- * `count` butterflies leaving `origin`, fanned over the upper half-circle
- * (a little below horizontal at each end), each fluttering side to side
- * and flying until it is off screen.
+ * `count` butterflies bursting out of `origin` (the middle of the screen) all
+ * the way round, like a firework: a quick pop out to spots all over the
+ * screen, near the middle and near the edges, then each flutters side to
+ * side and drifts on, slowly at first, until it is off screen.
  */
 export function planFlights(origin: Point, viewport: Size, count: number, rand: () => number): Flight[] {
   const short = Math.min(viewport.width, viewport.height)
+  const turn = rand() * 360 // so the flock is not the same shape every time
   const flights: Flight[] = []
   for (let i = 0; i < count; i++) {
-    // Even fan from 200° to 340° (screen y points down, so this is upward), jittered.
-    const fan = 200 + (140 * (i + 0.5)) / count + (rand() - 0.5) * (120 / count)
-    const angle = (fan * Math.PI) / 180
+    // Even spread round the circle, jittered within each butterfly's slice.
+    const angle = ((turn + (360 * (i + 0.2 + rand() * 0.6)) / count) * Math.PI) / 180
     const dir = { x: Math.cos(angle), y: Math.sin(angle) }
     const perp = { x: -dir.y, y: dir.x }
-    const size = Math.round(Math.min(120, Math.max(36, short * (0.08 + rand() * 0.06))))
+    const size = Math.round(Math.min(130, Math.max(36, short * (0.08 + rand() * 0.09))))
+    const toEdge = exitDistance(origin, dir, viewport, 0)
     const distance = exitDistance(origin, dir, viewport, size * 1.5)
-    const sway = short * (0.03 + rand() * 0.05)
+    // Where the burst leaves it: anywhere from near the middle to near the edge.
+    const spot = toEdge * (0.3 + 0.6 * ((i * 0.618034) % 1)) // golden-ratio steps: an even mix
+    const sway = short * (0.015 + rand() * 0.03)
     const phase = rand() * Math.PI * 2
-    const waves = 1.2 + rand() * 1.3
-    const tilt = dir.x * 25 // lean into the direction of travel
+    const waves = 1 + rand() * 1.2
+    const tilt = dir.x * 30 // lean into the direction of travel
 
     const path = OFFSETS.map((offset, k): PathPoint => {
-      // Ease out: quick launch, then a lazier drift off screen.
-      const along = distance * (1 - (1 - offset) ** 1.6)
-      const side = offset === 0 ? 0 : sway * Math.sin(phase + offset * waves * Math.PI * 2) * Math.min(1, offset * 4)
+      const along =
+        offset <= BURST
+          ? spot * (1 - (1 - offset / BURST) ** 2.5) // pop
+          : spot + (distance - spot) * ((offset - BURST) / (1 - BURST)) ** 1.8 // drift off, gathering speed
+      const side = offset === 0 ? 0 : sway * Math.sin(phase + offset * waves * Math.PI * 2) * Math.min(1, offset * 5)
       return {
         offset,
         x: k === 0 ? origin.x : Math.round((origin.x + dir.x * along + perp.x * side) * 10) / 10,
         y: k === 0 ? origin.y : Math.round((origin.y + dir.y * along + perp.y * side) * 10) / 10,
-        rotate: Math.round(tilt + (k === 0 ? 0 : Math.sin(phase + k) * 14)),
-        scale: k === 0 ? 0.35 : 1,
+        rotate: Math.round(tilt + (k === 0 ? 0 : Math.sin(phase + k * 0.8) * 14)),
+        scale: k === 0 ? 0.2 : Math.min(1, 0.45 + offset * 4),
         opacity: k === 0 ? 0 : k === OFFSETS.length - 1 ? 0.6 : 1,
       }
     })
 
     flights.push({
       path,
-      duration: Math.round(1900 + rand() * 900),
-      delay: Math.round(rand() * 260),
+      duration: Math.round(2400 + rand() * 1000),
+      delay: Math.round(rand() * 160),
       size,
       variant: (i % 2) as 0 | 1,
       flap: Math.round(110 + rand() * 70),

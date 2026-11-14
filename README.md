@@ -5,9 +5,11 @@ Báo tường "Thắp sáng – L2T NEWS" trên web — Vite + React + TypeScrip
 Trang chính là bìa báo trải kín màn hình, theo mẫu `design/update-v1/homepage-design.webp`:
 máy tính thì tiêu đề + hải đăng bên trái, 4 thẻ bên phải; điện thoại thì tiêu đề, 4 thẻ rồi biển
 xếp dọc; máy tính bảng dựng đứng thì đúng như mẫu. Bấm một trong 4 thẻ để mở trang đó trong popup
-(nền tối, mờ). Lúc popup mở, một đàn bướm bay ra từ thẻ vừa bấm, các hình trong trang lần lượt
-hiện ra từ trên xuống, rồi chữ chạy ra từng dòng (trái → phải, trên → dưới). Trang "Lời tri ân"
-có video (Google Drive) hiện trong khung ở dưới, sau khi chữ chạy xong. Mỗi mục có link riêng:
+(nền tối, mờ), in trên tờ thư airmail gấp nếp giống thẻ ở trang chính. Lúc popup mở, cả đàn bướm
+bung ra từ giữa màn hình, các hình trong trang lần lượt hiện ra từ trên xuống, rồi chữ chạy ra từng
+dòng (trái → phải, trên → dưới). Trang "Lời tri ân" có video (Google Drive) hiện trong khung ở dưới,
+sau khi chữ chạy xong; màn hình nhỏ thì trình phát được thu nhỏ cho vừa khung để không bị cắt hình.
+Ở trang chính, thuyền đung đưa và sóng dập dềnh. Mỗi mục có link riêng:
 `/#loi-ngo`, `/#vung-ky-uc`, `/#cung-nhau-lon`, `/#loi-tri-an`.
 
 ## Chạy local
@@ -38,7 +40,7 @@ pnpm dev
 
 Trong popup: vuốt (mobile), phím ← → hoặc nút mũi tên (desktop) để sang mục khác; chạm đúp / pinch để phóng to;
 đóng bằng nút ✕, bấm ra vùng tối, phím Esc hoặc nút Back. Máy bật "giảm chuyển động" thì không có bướm,
-các hình, chữ và video hiện ngay.
+biển đứng yên, các hình, chữ và video hiện ngay.
 
 ## Deploy (GitHub Actions → Vercel)
 

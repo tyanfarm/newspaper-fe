@@ -4,14 +4,12 @@ import bird2 from './assets/cover/bird-2.webp'
 import bird3 from './assets/cover/bird-3.webp'
 import title from './assets/cover/title.webp'
 import waves from './assets/cover/waves.webp'
-import type { Point } from './butterflies'
 import scene from './coverScene.json'
 import './home.css'
 import { sections } from './sections'
 
 type HomeProps = {
-  /** `origin`: centre of the clicked card, where the butterflies fly out from. */
-  onOpen: (index: number, origin: Point) => void
+  onOpen: (index: number) => void
 }
 
 const art = import.meta.glob<string>('./assets/cover/*.webp', { eager: true, import: 'default' })
@@ -102,10 +100,7 @@ export default function Home({ onOpen }: HomeProps) {
               aria-label={section.title}
               data-slug={section.slug}
               style={{ left: pct((c.x - board.x) / board.w), top: pct((c.y - board.y) / board.h), width: pct(c.w / board.w) }}
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect()
-                onOpen(i, { x: r.left + r.width / 2, y: r.top + r.height / 2 })
-              }}
+              onClick={() => onOpen(i)}
             >
               <img src={section.card} alt="" />
             </button>

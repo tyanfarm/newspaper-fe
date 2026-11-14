@@ -9,14 +9,13 @@ const screenCentre = (): Point => ({ x: window.innerWidth / 2, y: window.innerHe
 
 export default function App() {
   const route = useSectionRoute()
-  // Butterflies fly out whenever a section opens: from the clicked card, or
-  // from the middle of the screen when the page loads straight onto a section.
+  // Butterflies burst out of the middle of the screen whenever a section opens.
   const [burst, setBurst] = useState<Burst | null>(() =>
     route.openIndex === null ? null : { id: 0, origin: screenCentre() },
   )
 
-  const open = (index: number, origin: Point) => {
-    setBurst((prev) => ({ id: (prev?.id ?? 0) + 1, origin }))
+  const open = (index: number) => {
+    setBurst((prev) => ({ id: (prev?.id ?? 0) + 1, origin: screenCentre() }))
     route.open(index)
   }
 

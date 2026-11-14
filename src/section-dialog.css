@@ -188,15 +188,39 @@
     visibility 0s linear var(--delay);
 }
 .section-page__video img,
-.section-page__video iframe {
+.section-page__player {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+.section-page__player { overflow: hidden; }
+/* Sized and shrunk to the frame by SectionPage.tsx (videoFit.ts). */
+.section-page__player iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
   border: 0;
+  transform-origin: 0 0;
 }
 
 /* ---------- butterflies (ButterflyBurst.tsx) ---------- */
+
+/* The soft flash of light they burst out of. */
+.butterflies__glow {
+  position: absolute;
+  width: 110vmin;
+  height: 110vmin;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(255 248 225 / 0.8) 0%,
+    rgb(255 226 236 / 0.4) 30%,
+    rgb(255 226 236 / 0) 65%
+  );
+  pointer-events: none;
+}
 
 .butterflies {
   position: fixed;
@@ -223,12 +247,26 @@
   to { transform: perspective(300px) rotateY(68deg); }
 }
 
+/* Landscape screens: the page is narrower than the screen, so the header can
+   float over the empty sides and the page takes the full height. */
+@media (min-aspect-ratio: 5/4) {
+  .section-dialog__header {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .section-dialog__header > * { pointer-events: auto; }
+  .section-dialog .swiper-slide { padding: 10px 12px; }
+}
+
 /* Phones: swipe instead of arrows. Scoped for specificity over Swiper's CSS. */
 @media (max-width: 47.99rem) {
   .section-dialog .swiper-button-prev,
   .section-dialog .swiper-button-next {
     display: none;
   }
+  .section-dialog .swiper-slide { padding: 0 6px 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
